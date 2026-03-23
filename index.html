@@ -818,6 +818,61 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
+
+  /* Provider tabs */
+  .provider-tab {
+    padding: 8px 18px;
+    font-size: 13px;
+    font-family: var(--font-body);
+    color: var(--ink3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .provider-tab:hover { color: var(--ink2); }
+  .provider-tab.active { color: var(--gold); border-bottom-color: var(--gold); font-weight: 500; }
+
+  .field-label {
+    display: block;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--ink3);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+
+  .field-select {
+    width: 100%;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--parch);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b5740' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+    cursor: pointer;
+  }
+
+  .field-select:focus { outline: none; border-color: var(--gold2); box-shadow: 0 0 0 3px rgba(212,168,67,0.12); }
+
+  #api-modal code {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    background: var(--parch2);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--ink2);
+  }
 </style>
 </head>
 <body>
@@ -996,29 +1051,90 @@
 
 <!-- API Key Modal -->
 <div id="api-modal-overlay">
-  <div id="api-modal">
+  <div id="api-modal" style="max-width:540px">
     <h2>NovelForge</h2>
-    <div class="modal-sub">AI Novel Writing Agent · Powered by Claude</div>
+    <div class="modal-sub">AI Novel Writing Agent · Configure your AI provider</div>
 
-    <p class="modal-help">
-      To use NovelForge, you need a free Anthropic API key. Your key is stored only in memory — it's never saved to disk or sent anywhere except directly to Anthropic's API.
-      <br><br>
-      Get your free key at <a href="https://console.anthropic.com/keys" target="_blank">console.anthropic.com/keys</a> — new accounts receive free credits.
-    </p>
-
-    <div class="modal-error" id="modal-error">Invalid API key. Please check and try again.</div>
-
-    <div class="api-key-input-wrap">
-      <input type="password" id="api-key-input" placeholder="sk-ant-api03-…" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
-      <button class="key-toggle" onclick="toggleKeyVis()" id="key-toggle-btn" title="Show/hide key">👁</button>
+    <!-- Provider tabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border2);margin-bottom:18px;margin-top:4px">
+      <div class="provider-tab active" id="ptab-anthropic" onclick="selectProvider('anthropic')">Anthropic</div>
+      <div class="provider-tab" id="ptab-openai" onclick="selectProvider('openai')">OpenAI</div>
+      <div class="provider-tab" id="ptab-custom" onclick="selectProvider('custom')">Custom / Local</div>
     </div>
 
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px" onclick="saveApiKey()" id="save-key-btn">
-      ✦ Enter NovelForge
+    <!-- Anthropic panel -->
+    <div id="ppanel-anthropic">
+      <p class="modal-help">
+        Enter your Anthropic API key from <a href="https://console.anthropic.com/keys" target="_blank">console.anthropic.com/keys</a>.
+        <br><br>
+        💡 <strong>Free evaluation / low-balance?</strong> Select <em>claude-haiku-4-5</em> — it's 20× cheaper than Sonnet and still writes excellent novels. Alternatively switch to the <strong>OpenAI tab</strong> and use <a href="https://console.groq.com/keys" target="_blank">Groq's free tier</a> (llama-3.3-70b) or <a href="https://openrouter.ai" target="_blank">OpenRouter</a> which has many free models.
+        <br><br>
+        🔑 <strong>Claude Console evaluation keys</strong> — keys issued under a Console evaluation or workbench account work identically here. Paste the key exactly as shown in the Console.
+      </p>
+      <label class="field-label">Model</label>
+      <select id="anthropic-model" class="field-select">
+        <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 · Fastest &amp; cheapest ✦ Best for free tier</option>
+        <option value="claude-sonnet-4-20250514" selected>claude-sonnet-4 · Balanced quality (recommended)</option>
+        <option value="claude-opus-4-6">claude-opus-4-6 · Highest quality</option>
+      </select>
+      <label class="field-label" style="margin-top:12px">API Key</label>
+      <div class="api-key-input-wrap">
+        <input type="password" id="api-key-input" placeholder="sk-ant-api03-…" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
+        <button class="key-toggle" onclick="toggleKeyVis('api-key-input')" title="Show/hide">👁</button>
+      </div>
+    </div>
+
+    <!-- OpenAI panel -->
+    <div id="ppanel-openai" class="hidden">
+      <p class="modal-help">
+        Works with any OpenAI-compatible provider. Quick-fill a free option below, or enter your own endpoint and key.
+      </p>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn btn-outline btn-sm" onclick="quickFill('https://api.openai.com/v1/chat/completions','gpt-4o-mini')">OpenAI gpt-4o-mini</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFill('https://api.groq.com/openai/v1/chat/completions','llama-3.3-70b-versatile')">Groq (free tier)</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFill('https://openrouter.ai/api/v1/chat/completions','meta-llama/llama-3.3-70b-instruct:free')">OpenRouter (free)</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFill('https://api.together.xyz/v1/chat/completions','meta-llama/Llama-3-70b-chat-hf')">Together AI</button>
+      </div>
+      <label class="field-label">API Endpoint</label>
+      <input type="text" id="openai-endpoint" value="https://api.openai.com/v1/chat/completions" style="margin-bottom:10px;font-family:var(--font-mono);font-size:12px">
+      <label class="field-label">Model</label>
+      <input type="text" id="openai-model" placeholder="gpt-4o-mini, llama-3.3-70b-versatile, etc." value="gpt-4o-mini" style="margin-bottom:10px;font-family:var(--font-mono);font-size:12px">
+      <label class="field-label">API Key</label>
+      <div class="api-key-input-wrap">
+        <input type="password" id="openai-key-input" placeholder="sk-… or gsk_… or your provider key" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
+        <button class="key-toggle" onclick="toggleKeyVis('openai-key-input')" title="Show/hide">👁</button>
+      </div>
+      <p class="modal-help" style="margin-top:10px">
+        Get a free Groq key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> · Free OpenRouter models at <a href="https://openrouter.ai/models?q=free" target="_blank">openrouter.ai</a>
+      </p>
+    </div>
+
+    <!-- Custom / Local panel -->
+    <div id="ppanel-custom" class="hidden">
+      <p class="modal-help">
+        Connect any OpenAI-compatible local or custom endpoint — Ollama, LM Studio, Jan, llama.cpp, vLLM, Hugging Face Inference, etc. No key required for local models.
+        <br><br>
+        Example endpoints: <code>http://localhost:11434/v1/chat/completions</code> (Ollama), <code>http://localhost:1234/v1/chat/completions</code> (LM Studio).
+      </p>
+      <label class="field-label">API Endpoint</label>
+      <input type="text" id="custom-endpoint" placeholder="http://localhost:11434/v1/chat/completions" style="margin-bottom:10px;font-family:var(--font-mono);font-size:12px">
+      <label class="field-label">Model name <span style="font-weight:400;color:var(--ink3)">(as required by your server)</span></label>
+      <input type="text" id="custom-model" placeholder="llama3, mistral, phi3, etc." style="margin-bottom:10px;font-family:var(--font-mono);font-size:12px">
+      <label class="field-label">API Key <span style="font-weight:400;color:var(--ink3)">(leave blank if not required)</span></label>
+      <div class="api-key-input-wrap">
+        <input type="password" id="custom-key-input" placeholder="optional" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
+        <button class="key-toggle" onclick="toggleKeyVis('custom-key-input')" title="Show/hide">👁</button>
+      </div>
+    </div>
+
+    <div class="modal-error" id="modal-error"></div>
+
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;margin-top:16px" onclick="saveApiKey()" id="save-key-btn">
+      ✦ Connect &amp; Enter NovelForge
     </button>
 
-    <div style="margin-top:16px;font-size:11.5px;color:var(--ink3);text-align:center;font-family:var(--font-mono)">
-      Your key stays in this browser tab only · Never stored · Never shared
+    <div style="margin-top:14px;font-size:11px;color:var(--ink3);text-align:center;font-family:var(--font-mono)">
+      Keys stay in this browser tab only · Never stored · Never sent except to your chosen provider
     </div>
   </div>
 </div>
@@ -1040,103 +1156,241 @@ const state = {
   wordCountEst: 0,
 };
 
-// ─── API Key Management ───────────────────────────────────────────────────────
-let ANTHROPIC_API_KEY = '';
+// ─── Provider Config ──────────────────────────────────────────────────────────
+const apiConfig = {
+  provider: 'anthropic',   // 'anthropic' | 'openai' | 'custom'
+  key: '',
+  model: 'claude-sonnet-4-20250514',
+  endpoint: '',            // used for openai + custom
+};
 
+// ─── Modal UI ─────────────────────────────────────────────────────────────────
 function showApiModal() {
   document.getElementById('api-modal-overlay').style.display = 'flex';
-  document.getElementById('api-key-input').value = ANTHROPIC_API_KEY || '';
-  document.getElementById('modal-error').style.display = 'none';
-  setTimeout(() => document.getElementById('api-key-input').focus(), 100);
+  setErr('');
+  // Restore saved values into fields
+  document.getElementById('api-key-input').value = apiConfig.provider === 'anthropic' ? apiConfig.key : '';
+  document.getElementById('openai-key-input').value = apiConfig.provider === 'openai' ? apiConfig.key : '';
+  document.getElementById('custom-key-input').value = apiConfig.provider === 'custom' ? apiConfig.key : '';
+  if (apiConfig.provider === 'openai') document.getElementById('openai-endpoint').value = apiConfig.endpoint || 'https://api.openai.com/v1/chat/completions';
+  if (apiConfig.provider === 'custom') document.getElementById('custom-endpoint').value = apiConfig.endpoint || '';
+  selectProvider(apiConfig.provider);
+  setTimeout(() => {
+    const active = apiConfig.provider === 'anthropic' ? 'api-key-input'
+                 : apiConfig.provider === 'openai'    ? 'openai-key-input'
+                 : 'custom-endpoint';
+    document.getElementById(active)?.focus();
+  }, 120);
 }
 
 function hideApiModal() {
   document.getElementById('api-modal-overlay').style.display = 'none';
 }
 
-function toggleKeyVis() {
-  const inp = document.getElementById('api-key-input');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
+function selectProvider(p) {
+  ['anthropic','openai','custom'].forEach(id => {
+    document.getElementById('ptab-'+id).classList.toggle('active', id === p);
+    document.getElementById('ppanel-'+id).classList.toggle('hidden', id !== p);
+  });
+  apiConfig.provider = p;
 }
 
+function toggleKeyVis(inputId) {
+  const inp = document.getElementById(inputId);
+  if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function setErr(msg) {
+  const el = document.getElementById('modal-error');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+// ─── Save & Verify ────────────────────────────────────────────────────────────
 async function saveApiKey() {
-  const key = document.getElementById('api-key-input').value.trim();
-  const err = document.getElementById('modal-error');
   const btn = document.getElementById('save-key-btn');
-
-  if (!key.startsWith('sk-ant-')) {
-    err.textContent = 'Key must start with "sk-ant-". Get yours at console.anthropic.com/keys';
-    err.style.display = 'block';
-    return;
-  }
-
   btn.disabled = true;
   btn.textContent = '✒ Verifying…';
-  err.style.display = 'none';
+  setErr('');
 
-  // Quick verification call
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 10,
-        messages: [{ role: 'user', content: 'Hi' }]
-      })
-    });
-    const data = await res.json();
-    if (data.error) {
-      err.textContent = `API error: ${data.error.message}`;
-      err.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = '✦ Enter NovelForge';
-      return;
+    if (apiConfig.provider === 'anthropic') {
+      await verifyAnthropic();
+    } else {
+      await verifyOpenAICompat();
     }
+    updateSidebarKey();
+    hideApiModal();
+    toast('Provider connected ✓');
   } catch(e) {
-    err.textContent = 'Could not reach Anthropic API. Check your connection.';
-    err.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = '✦ Enter NovelForge';
-    return;
+    setErr(e.message);
   }
 
-  ANTHROPIC_API_KEY = key;
-  const masked = key.substring(0, 12) + '…' + key.slice(-4);
-  document.getElementById('key-label').textContent = masked;
-  document.getElementById('key-dot').style.background = '#1a6b6b';
   btn.disabled = false;
-  btn.textContent = '✦ Enter NovelForge';
-  hideApiModal();
-  toast('API key connected ✓');
+  btn.textContent = '✦ Connect & Enter NovelForge';
 }
 
-// ─── API ──────────────────────────────────────────────────────────────────────
-async function callClaude(systemPrompt, userPrompt, maxTokens = 1500) {
-  if (!ANTHROPIC_API_KEY) { showApiModal(); throw new Error('No API key set.'); }
+async function verifyAnthropic() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) throw new Error('Please enter your Anthropic API key.');
+
+  const model = document.getElementById('anthropic-model').value;
+
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
+      'x-api-key': key,
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model,
+      max_tokens: 5,
+      messages: [{ role: 'user', content: 'Hi' }]
+    })
+  });
+
+  const data = await res.json();
+  if (data.error) {
+    // Give actionable guidance for the most common errors
+    const msg = data.error.message || '';
+    if (msg.includes('credit') || msg.includes('balance') || msg.includes('billing')) {
+      throw new Error('Your Anthropic account has insufficient credits. Options: (1) Add credits at console.anthropic.com/billing, (2) Switch to claude-haiku-4-5 (cheapest model), or (3) Use the OpenAI or Custom tab with a free-tier provider like Groq.');
+    }
+    if (msg.includes('invalid') || msg.includes('auth') || msg.includes('401')) {
+      throw new Error('Invalid API key. Copy it fresh from console.anthropic.com/keys.');
+    }
+    throw new Error(msg);
+  }
+
+  apiConfig.key = key;
+  apiConfig.model = model;
+  apiConfig.endpoint = '';
+}
+
+async function verifyOpenAICompat() {
+  const isCustom = apiConfig.provider === 'custom';
+  const keyEl   = isCustom ? 'custom-key-input'   : 'openai-key-input';
+  const epEl    = isCustom ? 'custom-endpoint'     : 'openai-endpoint';
+  const modelEl = isCustom ? 'custom-model'        : 'openai-model';
+
+  const key      = document.getElementById(keyEl).value.trim();
+  const endpoint = document.getElementById(epEl).value.trim();
+  const model    = document.getElementById(modelEl).value.trim();
+
+  if (!endpoint) throw new Error('Please enter an API endpoint URL.');
+  if (!model)    throw new Error('Please enter a model name.');
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (key) headers['Authorization'] = 'Bearer ' + key;
+
+  let res;
+  try {
+    res = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model,
+        max_tokens: 5,
+        messages: [{ role: 'user', content: 'Hi' }]
+      })
+    });
+  } catch(e) {
+    throw new Error(`Cannot reach endpoint: ${endpoint}. Check the URL and that the server is running.`);
+  }
+
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+  apiConfig.key      = key;
+  apiConfig.model    = model;
+  apiConfig.endpoint = endpoint;
+}
+
+function updateSidebarKey() {
+  const dot   = document.getElementById('key-dot');
+  const label = document.getElementById('key-label');
+  dot.style.background = '#1a6b6b';
+
+  if (apiConfig.provider === 'anthropic') {
+    const k = apiConfig.key;
+    label.textContent = (k.substring(0,14) + '…' + k.slice(-4)) + '  ·  ' + apiConfig.model.split('-').slice(0,2).join('-');
+  } else if (apiConfig.provider === 'openai') {
+    label.textContent = apiConfig.model + '  ·  OpenAI-compat';
+  } else {
+    const short = apiConfig.endpoint.replace(/^https?:\/\//, '').substring(0, 28);
+    label.textContent = apiConfig.model + '  ·  ' + short;
+  }
+}
+
+function quickFill(endpoint, model) {
+  document.getElementById('openai-endpoint').value = endpoint;
+  document.getElementById('openai-model').value = model;
+  document.getElementById('openai-key-input').focus();
+}
+
+// ─── Universal callClaude ────────────────────────────────────────────────────
+async function callClaude(systemPrompt, userPrompt, maxTokens = 1500) {
+  if (!apiConfig.key && apiConfig.provider !== 'custom') {
+    showApiModal();
+    throw new Error('No API key configured.');
+  }
+
+  if (apiConfig.provider === 'anthropic') {
+    return callAnthropicAPI(systemPrompt, userPrompt, maxTokens);
+  } else {
+    return callOpenAICompatAPI(systemPrompt, userPrompt, maxTokens);
+  }
+}
+
+async function callAnthropicAPI(systemPrompt, userPrompt, maxTokens) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiConfig.key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: apiConfig.model,
       max_tokens: maxTokens,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }]
     })
   });
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) {
+    const msg = data.error.message || '';
+    if (msg.includes('credit') || msg.includes('balance')) {
+      showApiModal();
+      throw new Error('Credit balance too low. Switch to a cheaper model or another provider in the API settings.');
+    }
+    throw new Error(msg);
+  }
   return data.content?.[0]?.text || '';
+}
+
+async function callOpenAICompatAPI(systemPrompt, userPrompt, maxTokens) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiConfig.key) headers['Authorization'] = 'Bearer ' + apiConfig.key;
+
+  const res = await fetch(apiConfig.endpoint, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model: apiConfig.model,
+      max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt }
+      ]
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  return data.choices?.[0]?.message?.content || '';
 }
 
 async function callClaudeJSON(systemPrompt, userPrompt, maxTokens = 1500) {
