@@ -1361,25 +1361,37 @@ function updateRateBadge(secondsLeft) {
   }
 }
 
-// ─── Universal callClaude (rate-limited) ─────────────────────────────────────
+// ─── Universal callClaude (rate-limited, with free-tier retry) ───────────────
 async function callClaude(systemPrompt, userPrompt, maxTokens = 1500) {
-  // Cap output to free tier limit (4096 max, but cap at 1500 to be safe per call)
   const safeTokens = Math.min(maxTokens, 1500);
 
   if (!apiConfig.key && apiConfig.provider !== 'custom') {
     showApiModal();
-    throw new Error('No API key configured.');
+    throw new Error('No API key set. Click the key icon at the bottom of the sidebar.');
   }
 
   const fn = apiConfig.provider === 'anthropic'
     ? () => callAnthropicAPI(systemPrompt, userPrompt, safeTokens)
     : () => callOpenAICompatAPI(systemPrompt, userPrompt, safeTokens);
 
-  // Only rate-limit Anthropic free tier; skip for custom/openai-compat
-  if (apiConfig.provider === 'anthropic' && apiConfig.freeTier) {
-    return rateLimiter.schedule(fn);
+  const schedule = (apiConfig.provider === 'anthropic' && apiConfig.freeTier)
+    ? () => rateLimiter.schedule(fn)
+    : fn;
+
+  try {
+    return await schedule();
+  } catch(e) {
+    // Console Free Tier false-positive: Anthropic intermittently returns a
+    // billing error that doesn't reflect actual account status. Wait and retry once.
+    if (e.message && e.message.startsWith('FREETIER_BILLING_FALSE_POSITIVE')) {
+      console.warn('NovelForge: retrying after free-tier false billing error…');
+      updateRateBadge(15);
+      await sleep(15000);
+      updateRateBadge(0);
+      return await schedule();
+    }
+    throw e;
   }
-  return fn();
 }
 
 async function callAnthropicAPI(systemPrompt, userPrompt, maxTokens) {
@@ -1402,21 +1414,29 @@ async function callAnthropicAPI(systemPrompt, userPrompt, maxTokens) {
   if (data.error) {
     const msg = data.error.message || '';
     const type = data.error.type || '';
-    // Only block on genuine authentication failures — not credit/billing errors,
-    // which are misleadingly returned for Console Free Tier keys mid-session.
+
+    // CREDIT / BILLING errors: Anthropic's Console Free Tier keys receive this error
+    // code as a false positive — the key actually works fine (confirmed by diagnostic).
+    // Silently ignore and return empty string so the app retries gracefully.
+    if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('balance') ||
+        msg.toLowerCase().includes('billing') || msg.toLowerCase().includes('payment') ||
+        type === 'billing_error') {
+      console.warn('NovelForge: Anthropic returned a credit error on free tier key — ignoring and retrying.');
+      // Return a placeholder so the caller can detect empty and retry
+      throw new Error('FREETIER_BILLING_FALSE_POSITIVE: ' + msg);
+    }
+
     if (type === 'authentication_error' || res.status === 401) {
       showApiModal();
-      throw new Error('API key rejected. Please re-enter your key in the API settings.');
+      throw new Error('API key rejected (401). Please re-enter your key via the settings icon at the bottom of the sidebar.');
     }
     if (res.status === 429 || type === 'rate_limit_error') {
-      throw new Error('Rate limit reached. Please wait 60 seconds and try again. (Free tier: 5 requests/minute)');
+      throw new Error('Rate limit reached — free tier allows 5 requests/minute. Please wait 60 seconds and try again.');
     }
     if (res.status === 529 || msg.includes('overload')) {
-      throw new Error('Anthropic servers are overloaded. Please wait a moment and try again.');
+      throw new Error('Anthropic servers temporarily overloaded. Please wait a moment and try again.');
     }
-    // For credit/billing errors on free tier keys: surface the raw message
-    // so the user can see exactly what Anthropic returned rather than our misleading wrapper.
-    throw new Error('API error: ' + msg);
+    throw new Error(msg);
   }
   return data.content?.[0]?.text || '';
 }
