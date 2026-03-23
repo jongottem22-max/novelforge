@@ -1066,12 +1066,16 @@
 
     <!-- Anthropic panel -->
     <div id="ppanel-anthropic">
+      <div style="background:rgba(139,32,32,0.07);border:1px solid rgba(139,32,32,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#5a1010;line-height:1.55">
+        <strong>⚠ Claude Console Free Tier keys are blocked for API generation.</strong><br>
+        Anthropic's free tier only allows use via the Workbench UI — not direct API calls from apps. Your key authenticates correctly but all generation requests are rejected with a billing error.<br><br>
+        <strong>The fix:</strong> Use the <strong>OpenAI tab → Groq</strong> option. It's completely free, fast, and works perfectly with NovelForge.
+        <button class="btn btn-approve btn-sm" style="margin-top:8px;width:100%;justify-content:center" onclick="selectProvider('openai');quickFill('https://api.groq.com/openai/v1/chat/completions','llama-3.3-70b-versatile');setErr('')">
+          → Switch to Groq (Free) Now
+        </button>
+      </div>
       <p class="modal-help">
-        Enter your Anthropic API key from <a href="https://console.anthropic.com/keys" target="_blank">console.anthropic.com/keys</a>.
-        <br><br>
-        💡 <strong>Free evaluation / low-balance?</strong> Select <em>claude-haiku-4-5</em> — it's 20× cheaper than Sonnet and still writes excellent novels. Alternatively switch to the <strong>OpenAI tab</strong> and use <a href="https://console.groq.com/keys" target="_blank">Groq's free tier</a> (llama-3.3-70b) or <a href="https://openrouter.ai" target="_blank">OpenRouter</a> which has many free models.
-        <br><br>
-        🔑 <strong>Claude Console evaluation keys</strong> — keys issued under a Console evaluation or workbench account work identically here. Paste the key exactly as shown in the Console.
+        If you have a <strong>paid Anthropic API account</strong> with credits, paste your key below and it will work. Free Console evaluation keys will not work for generation.
       </p>
       <label class="field-label">Model</label>
       <select id="anthropic-model" class="field-select">
@@ -1174,10 +1178,21 @@ const apiConfig = {
 };
 
 // ─── Modal UI ─────────────────────────────────────────────────────────────────
-function showApiModal() {
+function showApiModal(openOnGroq = false) {
   document.getElementById('api-modal-overlay').style.display = 'flex';
   setErr('');
-  // Restore saved values into fields
+
+  if (openOnGroq) {
+    // Anthropic billing blocked — drop straight onto the OpenAI/Groq tab
+    selectProvider('openai');
+    quickFill('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile');
+    setErr('⚠ Your Anthropic key is blocked for generation (free tier API restriction). ' +
+           'Use Groq below — it's completely free and just as capable. ' +
+           'Get a free key at console.groq.com/keys then paste it and connect.');
+    setTimeout(() => document.getElementById('openai-key-input')?.focus(), 120);
+    return;
+  }
+
   document.getElementById('api-key-input').value = apiConfig.provider === 'anthropic' ? apiConfig.key : '';
   document.getElementById('openai-key-input').value = apiConfig.provider === 'openai' ? apiConfig.key : '';
   document.getElementById('custom-key-input').value = apiConfig.provider === 'custom' ? apiConfig.key : '';
@@ -1378,20 +1393,7 @@ async function callClaude(systemPrompt, userPrompt, maxTokens = 1500) {
     ? () => rateLimiter.schedule(fn)
     : fn;
 
-  try {
-    return await schedule();
-  } catch(e) {
-    // Console Free Tier false-positive: Anthropic intermittently returns a
-    // billing error that doesn't reflect actual account status. Wait and retry once.
-    if (e.message && e.message.startsWith('FREETIER_BILLING_FALSE_POSITIVE')) {
-      console.warn('NovelForge: retrying after free-tier false billing error…');
-      updateRateBadge(15);
-      await sleep(15000);
-      updateRateBadge(0);
-      return await schedule();
-    }
-    throw e;
-  }
+  return await schedule();
 }
 
 async function callAnthropicAPI(systemPrompt, userPrompt, maxTokens) {
@@ -1415,15 +1417,14 @@ async function callAnthropicAPI(systemPrompt, userPrompt, maxTokens) {
     const msg = data.error.message || '';
     const type = data.error.type || '';
 
-    // CREDIT / BILLING errors: Anthropic's Console Free Tier keys receive this error
-    // code as a false positive — the key actually works fine (confirmed by diagnostic).
-    // Silently ignore and return empty string so the app retries gracefully.
+    // CREDIT / BILLING: Anthropic Console Free Tier keys cannot run generation
+    // calls — the free tier only allows evaluation via the Workbench UI, not API calls.
+    // Direct the user to Groq which is genuinely free for API use.
     if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('balance') ||
         msg.toLowerCase().includes('billing') || msg.toLowerCase().includes('payment') ||
         type === 'billing_error') {
-      console.warn('NovelForge: Anthropic returned a credit error on free tier key — ignoring and retrying.');
-      // Return a placeholder so the caller can detect empty and retry
-      throw new Error('FREETIER_BILLING_FALSE_POSITIVE: ' + msg);
+      showApiModal(true); // open modal on Groq tab
+      throw new Error('BILLING_BLOCKED');
     }
 
     if (type === 'authentication_error' || res.status === 401) {
@@ -1470,6 +1471,24 @@ async function callClaudeJSON(systemPrompt, userPrompt, maxTokens = 1500) {
     if (match) return JSON.parse(match[0]);
     throw e;
   }
+}
+
+function friendlyError(e) {
+  if (!e || !e.message) return 'Unknown error. Please try again.';
+  if (e.message === 'BILLING_BLOCKED') return null; // modal already shown
+  return e.message;
+}
+
+function showStageError(containerId, e) {
+  if (e.message === 'BILLING_BLOCKED') return; // modal handles it
+  const msg = e.message || 'Unknown error';
+  document.getElementById(containerId).innerHTML =
+    \`<div class="card" style="color:var(--red);padding:16px;border-color:rgba(139,32,32,0.3)">
+      <strong>Error:</strong> \${msg}
+      <div style="margin-top:10px;font-size:12px;color:var(--ink3)">
+        If this keeps happening, click the key icon in the sidebar and switch to Groq (free).
+      </div>
+    </div>\`;
 }
 
 // ─── Stage Navigation ─────────────────────────────────────────────────────────
@@ -1597,7 +1616,8 @@ Premise: "${premise.replace(/"/g, '\\"')}"`;
     if (existing) tb.appendChild(existing);
     document.getElementById('sidebar-status-text').textContent = `${data.genre} · Stage 1`;
   } catch(e) {
-    document.getElementById('genre-result-text').innerHTML = `<div style="color:var(--red);font-size:13px">Error: ${e.message}. Please check your API connection.</div>`;
+    if (e.message !== 'BILLING_BLOCKED')
+      document.getElementById('genre-result-text').innerHTML = `<div style="color:var(--red);font-size:13px">${e.message}</div>`;
   }
 
   btn.disabled = false;
@@ -1671,7 +1691,7 @@ Use these IDs: badguys, allislost, darknight, break3, finale, finalimage`;
     document.getElementById('beat-approve-btn').classList.remove('hidden');
     document.getElementById('sidebar-status-text').textContent = `${state.genre} · Beat Sheet Ready`;
   } catch(e) {
-    document.getElementById('beat-sheet-container').innerHTML = `<div class="card" style="color:var(--red);padding:16px">${e.message}</div>`;
+    showStageError('beat-sheet-container', e);
   }
 }
 
@@ -1792,7 +1812,7 @@ Write exactly 12 chapters (15 through 26). Keep synopses to 2-3 sentences each.`
     document.getElementById('chapter-plan-approve').classList.remove('hidden');
     document.getElementById('sidebar-status-text').textContent = `${state.genre} · ${state.chapters.length} Chapters Planned`;
   } catch(e) {
-    document.getElementById('chapter-plan-container').innerHTML = `<div class="card" style="color:var(--red);padding:16px">${e.message}</div>`;
+    showStageError('chapter-plan-container', e);
   }
 }
 
@@ -1987,7 +2007,7 @@ Write ~700 words continuing directly from the above. Resolve the chapter's immed
   } catch(e) {
     ch.status = 'pending';
     renderChapterEditor(i);
-    toast(`Error: ${e.message}`);
+    if (e.message !== 'BILLING_BLOCKED') toast('Error: ' + e.message);
   }
 }
 
@@ -2253,7 +2273,7 @@ Return JSON:
 
     document.getElementById('sidebar-status-text').textContent = `${state.genre} · ${score}/10 Overall`;
   } catch(e) {
-    document.getElementById('final-rating-container').innerHTML = `<div class="card" style="color:var(--red);padding:16px"><strong>Error:</strong> ${e.message}</div>`;
+    showStageError('final-rating-container', e);
   }
 }
 
