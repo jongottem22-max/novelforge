@@ -1052,7 +1052,7 @@
 <div id="toast"></div>
 
 <!-- API Key Modal -->
-<div id="api-modal-overlay">
+<div id="api-modal-overlay" style="display:none">
   <div id="api-modal" style="max-width:540px">
     <h2>NovelForge</h2>
     <div class="modal-sub">AI Novel Writing Agent · Configure your AI provider</div>
@@ -1151,6 +1151,10 @@
     </div>
   </div>
 </div>
+
+
+
+
 
 <script>
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -2281,63 +2285,47 @@ async function applyFinalEnhancements(enhancements) {
   toast('Go back to Stage 4 and revise any low-scoring chapters, then re-evaluate.');
 }
 
-// ─── DOM Event Wiring (runs after full page load) ─────────────────────────────
-// All modal interactivity is wired here instead of inline onclick attributes,
-// which fail in some browsers / GitHub Pages environments.
-document.addEventListener('DOMContentLoaded', function () {
+// Event wiring handled by modal init script above the main script block.
 
+// ─── Modal & UI Event Wiring ──────────────────────────────────────────────────
+// Runs after all app functions are defined above
+// Modal functions available immediately — before DOMContentLoaded
+// Using window.addEventListener ensures this runs after the DOM is ready
+window.addEventListener('load', function() {
   // Provider tabs
   document.querySelectorAll('[data-provider]').forEach(function(tab) {
-    tab.addEventListener('click', function() {
-      selectProvider(tab.getAttribute('data-provider'));
-    });
+    tab.addEventListener('click', function() { selectProvider(tab.getAttribute('data-provider')); });
   });
-
-  // QuickFill buttons (OpenAI panel presets)
+  // QuickFill preset buttons
   document.querySelectorAll('.qf-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      var ep = btn.getAttribute('data-ep');
-      var model = btn.getAttribute('data-model');
-      if (ep && model) quickFill(ep, model);
+      quickFill(btn.getAttribute('data-ep'), btn.getAttribute('data-model'));
     });
   });
-
-  // Switch to Groq button (inside Anthropic panel)
-  var groqBtn = document.getElementById('switch-to-groq-btn');
-  if (groqBtn) {
-    groqBtn.addEventListener('click', function() {
-      selectProvider('openai');
-      quickFill('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile');
-      setErr('');
-    });
-  }
-
-  // Save / Connect button
-  var saveBtn = document.getElementById('save-key-btn');
-  if (saveBtn) saveBtn.addEventListener('click', saveApiKey);
-
-  // Key indicator in sidebar — opens modal
-  var keyIndicator = document.getElementById('key-indicator');
-  if (keyIndicator) keyIndicator.addEventListener('click', function() { showApiModal(); });
-
-  // Eye toggle buttons
-  var eyeMap = {
-    'eye-anthropic': 'api-key-input',
-    'eye-openai':    'openai-key-input',
-    'eye-custom':    'custom-key-input'
-  };
-  Object.keys(eyeMap).forEach(function(btnId) {
-    var btn = document.getElementById(btnId);
-    if (btn) btn.addEventListener('click', function() { toggleKeyVis(eyeMap[btnId]); });
+  // Groq shortcut button
+  var g = document.getElementById('switch-to-groq-btn');
+  if (g) g.addEventListener('click', function() {
+    selectProvider('openai');
+    quickFill('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile');
+    setErr('');
   });
-
-  // Enter key in API key inputs
-  ['api-key-input', 'openai-key-input', 'custom-key-input'].forEach(function(id) {
+  // Save button
+  var s = document.getElementById('save-key-btn');
+  if (s) s.addEventListener('click', saveApiKey);
+  // Sidebar key indicator
+  var k = document.getElementById('key-indicator');
+  if (k) k.addEventListener('click', function() { showApiModal(); });
+  // Eye toggles
+  [['eye-anthropic','api-key-input'],['eye-openai','openai-key-input'],['eye-custom','custom-key-input']].forEach(function(pair) {
+    var b = document.getElementById(pair[0]);
+    if (b) b.addEventListener('click', function() { toggleKeyVis(pair[1]); });
+  });
+  // Enter key in inputs
+  ['api-key-input','openai-key-input','custom-key-input'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveApiKey(); });
   });
-
-  // Auto-open modal on load if no key set
+  // Show modal on load if no key
   if (!apiConfig.key) showApiModal();
 });
 </script>
