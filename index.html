@@ -910,7 +910,7 @@
       <strong>Novel Status</strong>
       <div id="sidebar-status-text">No novel started</div>
     </div>
-    <div class="key-indicator" onclick="showApiModal()" title="Change API key">
+    <div class="key-indicator" id="key-indicator" title="Change API key — click to edit">
       <div class="key-dot" id="key-dot" style="background:rgba(255,255,255,0.15)"></div>
       <div class="key-label" id="key-label">No API key set</div>
       <div class="key-change">change</div>
@@ -1059,9 +1059,9 @@
 
     <!-- Provider tabs -->
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border2);margin-bottom:18px;margin-top:4px">
-      <div class="provider-tab active" id="ptab-anthropic" onclick="selectProvider('anthropic')">Anthropic</div>
-      <div class="provider-tab" id="ptab-openai" onclick="selectProvider('openai')">OpenAI</div>
-      <div class="provider-tab" id="ptab-custom" onclick="selectProvider('custom')">Custom / Local</div>
+      <div class="provider-tab active" id="ptab-anthropic" data-provider="anthropic">Anthropic</div>
+      <div class="provider-tab" id="ptab-openai" data-provider="openai">OpenAI</div>
+      <div class="provider-tab" id="ptab-custom" data-provider="custom">Custom / Local</div>
     </div>
 
     <!-- Anthropic panel -->
@@ -1070,7 +1070,7 @@
         <strong>⚠ Claude Console Free Tier keys are blocked for API generation.</strong><br>
         Anthropic's free tier only allows use via the Workbench UI — not direct API calls from apps. Your key authenticates correctly but all generation requests are rejected with a billing error.<br><br>
         <strong>The fix:</strong> Use the <strong>OpenAI tab → Groq</strong> option. It's completely free, fast, and works perfectly with NovelForge.
-        <button class="btn btn-approve btn-sm" style="margin-top:8px;width:100%;justify-content:center" onclick="selectProvider('openai');quickFill('https://api.groq.com/openai/v1/chat/completions','llama-3.3-70b-versatile');setErr('')">
+        <button class="btn btn-approve btn-sm" id="switch-to-groq-btn" style="margin-top:8px;width:100%;justify-content:center">
           → Switch to Groq (Free) Now
         </button>
       </div>
@@ -1086,7 +1086,7 @@
       <label class="field-label" style="margin-top:12px">API Key</label>
       <div class="api-key-input-wrap">
         <input type="password" id="api-key-input" placeholder="sk-ant-api03-…" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
-        <button class="key-toggle" onclick="toggleKeyVis('api-key-input')" title="Show/hide">👁</button>
+        <button class="key-toggle" id="eye-anthropic" title="Show/hide key">👁</button>
       </div>
       <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:13px;color:var(--ink2)">
         <input type="checkbox" id="free-tier-checkbox" checked style="width:15px;height:15px;accent-color:var(--gold);cursor:pointer">
@@ -1103,10 +1103,10 @@
         Works with any OpenAI-compatible provider. Quick-fill a free option below, or enter your own endpoint and key.
       </p>
       <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
-        <button class="btn btn-outline btn-sm" onclick="quickFill('https://api.openai.com/v1/chat/completions','gpt-4o-mini')">OpenAI gpt-4o-mini</button>
-        <button class="btn btn-outline btn-sm" onclick="quickFill('https://api.groq.com/openai/v1/chat/completions','llama-3.3-70b-versatile')">Groq (free tier)</button>
-        <button class="btn btn-outline btn-sm" onclick="quickFill('https://openrouter.ai/api/v1/chat/completions','meta-llama/llama-3.3-70b-instruct:free')">OpenRouter (free)</button>
-        <button class="btn btn-outline btn-sm" onclick="quickFill('https://api.together.xyz/v1/chat/completions','meta-llama/Llama-3-70b-chat-hf')">Together AI</button>
+        <button class="btn btn-outline btn-sm qf-btn" data-ep="https://api.openai.com/v1/chat/completions" data-model="gpt-4o-mini">OpenAI gpt-4o-mini</button>
+        <button class="btn btn-outline btn-sm qf-btn" data-ep="https://api.groq.com/openai/v1/chat/completions" data-model="llama-3.3-70b-versatile">Groq (free tier) ✦ Free</button>
+        <button class="btn btn-outline btn-sm qf-btn" data-ep="https://openrouter.ai/api/v1/chat/completions" data-model="meta-llama/llama-3.3-70b-instruct:free">OpenRouter (free)</button>
+        <button class="btn btn-outline btn-sm qf-btn" data-ep="https://api.together.xyz/v1/chat/completions" data-model="meta-llama/Llama-3-70b-chat-hf">Together AI</button>
       </div>
       <label class="field-label">API Endpoint</label>
       <input type="text" id="openai-endpoint" value="https://api.openai.com/v1/chat/completions" style="margin-bottom:10px;font-family:var(--font-mono);font-size:12px">
@@ -1115,7 +1115,7 @@
       <label class="field-label">API Key</label>
       <div class="api-key-input-wrap">
         <input type="password" id="openai-key-input" placeholder="sk-… or gsk_… or your provider key" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
-        <button class="key-toggle" onclick="toggleKeyVis('openai-key-input')" title="Show/hide">👁</button>
+        <button class="key-toggle" id="eye-openai" title="Show/hide key">👁</button>
       </div>
       <p class="modal-help" style="margin-top:10px">
         Get a free Groq key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> · Free OpenRouter models at <a href="https://openrouter.ai/models?q=free" target="_blank">openrouter.ai</a>
@@ -1136,13 +1136,13 @@
       <label class="field-label">API Key <span style="font-weight:400;color:var(--ink3)">(leave blank if not required)</span></label>
       <div class="api-key-input-wrap">
         <input type="password" id="custom-key-input" placeholder="optional" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
-        <button class="key-toggle" onclick="toggleKeyVis('custom-key-input')" title="Show/hide">👁</button>
+        <button class="key-toggle" id="eye-custom" title="Show/hide key">👁</button>
       </div>
     </div>
 
     <div class="modal-error" id="modal-error"></div>
 
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;margin-top:16px" onclick="saveApiKey()" id="save-key-btn">
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;margin-top:16px" id="save-key-btn">
       ✦ Save &amp; Enter NovelForge
     </button>
 
@@ -2280,6 +2280,66 @@ Return JSON:
 async function applyFinalEnhancements(enhancements) {
   toast('Go back to Stage 4 and revise any low-scoring chapters, then re-evaluate.');
 }
+
+// ─── DOM Event Wiring (runs after full page load) ─────────────────────────────
+// All modal interactivity is wired here instead of inline onclick attributes,
+// which fail in some browsers / GitHub Pages environments.
+document.addEventListener('DOMContentLoaded', function () {
+
+  // Provider tabs
+  document.querySelectorAll('[data-provider]').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      selectProvider(tab.getAttribute('data-provider'));
+    });
+  });
+
+  // QuickFill buttons (OpenAI panel presets)
+  document.querySelectorAll('.qf-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var ep = btn.getAttribute('data-ep');
+      var model = btn.getAttribute('data-model');
+      if (ep && model) quickFill(ep, model);
+    });
+  });
+
+  // Switch to Groq button (inside Anthropic panel)
+  var groqBtn = document.getElementById('switch-to-groq-btn');
+  if (groqBtn) {
+    groqBtn.addEventListener('click', function() {
+      selectProvider('openai');
+      quickFill('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile');
+      setErr('');
+    });
+  }
+
+  // Save / Connect button
+  var saveBtn = document.getElementById('save-key-btn');
+  if (saveBtn) saveBtn.addEventListener('click', saveApiKey);
+
+  // Key indicator in sidebar — opens modal
+  var keyIndicator = document.getElementById('key-indicator');
+  if (keyIndicator) keyIndicator.addEventListener('click', function() { showApiModal(); });
+
+  // Eye toggle buttons
+  var eyeMap = {
+    'eye-anthropic': 'api-key-input',
+    'eye-openai':    'openai-key-input',
+    'eye-custom':    'custom-key-input'
+  };
+  Object.keys(eyeMap).forEach(function(btnId) {
+    var btn = document.getElementById(btnId);
+    if (btn) btn.addEventListener('click', function() { toggleKeyVis(eyeMap[btnId]); });
+  });
+
+  // Enter key in API key inputs
+  ['api-key-input', 'openai-key-input', 'custom-key-input'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveApiKey(); });
+  });
+
+  // Auto-open modal on load if no key set
+  if (!apiConfig.key) showApiModal();
+});
 </script>
 </body>
 </html>
