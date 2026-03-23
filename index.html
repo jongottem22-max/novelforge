@@ -473,12 +473,15 @@ async function buildBeats(){
   ld('beatCont','Crafting your beat sheet…','Building Act 1 & 2A');
   var SYS='You are a Save The Cat story structure expert. Return ONLY a valid JSON object. No markdown, no text outside the JSON. Use only ASCII characters in all string values.';
   try{
-    var UA='Create Save The Cat beats for Act 1 and Act 2A.\nGenre: '+S.genre+' ('+S.subgenre+')\nPremise: '+S.premise.substring(0,400)+'\nTitle: '+S.novelTitle+'\nReturn JSON: {"beats":[{"id":"opening","content":"2-3 concrete sentences"},{"id":"theme","content":"..."},{"id":"setup","content":"..."},{"id":"catalyst","content":"..."},{"id":"debate","content":"..."},{"id":"break1","content":"..."},{"id":"bsw","content":"..."},{"id":"fun","content":"..."},{"id":"midpoint","content":"..."}]}';
-    var dA=await askJ(SYS,UA,1200);
+    var UA='Create Save The Cat beats for Act 1 (opening through break1) for this '+S.genre+' novel "'+san(S.novelTitle)+'".\nPremise: '+san(S.premise)+'\nReturn ONLY this JSON with exactly these 6 beat IDs. One sentence per content field. No apostrophes:\n{"beats":[{"id":"opening","content":"one sentence"},{"id":"theme","content":"one sentence"},{"id":"setup","content":"one sentence"},{"id":"catalyst","content":"one sentence"},{"id":"debate","content":"one sentence"},{"id":"break1","content":"one sentence"}]}';
+    var dA=await askJ(SYS,UA,700);
+    ld('beatCont','Building Act 2A beats…','Batch 2 of 3');
+    var UA2='Create Save The Cat beats for Act 2A (bsw, fun, midpoint) for this '+S.genre+' novel "'+san(S.novelTitle)+'".\nPremise: '+san(S.premise)+'\nReturn ONLY this JSON. One sentence per content field. No apostrophes:\n{"beats":[{"id":"bsw","content":"one sentence"},{"id":"fun","content":"one sentence"},{"id":"midpoint","content":"one sentence"}]}';
+    var dA2=await askJ(SYS,UA2,400);
     ld('beatCont','Building Act 2B &amp; 3 beats…','Second batch');
-    var UB='Create Save The Cat beats for Act 2B and Act 3.\nGenre: '+S.genre+'\nPremise: '+san(S.premise)+'\nTitle: '+S.novelTitle+'\nReturn JSON: {"beats":[{"id":"badguys","content":"2-3 concrete sentences"},{"id":"allislost","content":"..."},{"id":"darknight","content":"..."},{"id":"break3","content":"..."},{"id":"finale","content":"..."},{"id":"finalimage","content":"..."}]}';
-    var dB=await askJ(SYS,UB,1000);
-    var map={};(dA.beats||[]).concat(dB.beats||[]).forEach(function(b){map[b.id]=b.content;});
+    var UB='Create Save The Cat beats for Act 2B and Act 3 (badguys through finalimage) for this '+S.genre+' novel "'+san(S.novelTitle)+'".\nPremise: '+san(S.premise)+'\nReturn ONLY this JSON. One sentence per content field. No apostrophes:\n{"beats":[{"id":"badguys","content":"one sentence"},{"id":"allislost","content":"one sentence"},{"id":"darknight","content":"one sentence"},{"id":"break3","content":"one sentence"},{"id":"finale","content":"one sentence"},{"id":"finalimage","content":"one sentence"}]}';
+    var dB=await askJ(SYS,UB,700);
+    var map={};(dA.beats||[]).concat((dA2&&dA2.beats)||[]).concat(dB.beats||[]).forEach(function(b){map[b.id]=b.content;});
     S.beats=STC.map(function(b){return Object.assign({},b,{content:map[b.id]||'[Click to add: '+b.name+']'});});
     renderBeats();
     document.getElementById('beatApproveWrap').classList.remove('hidden');
@@ -507,26 +510,60 @@ function approveBeats(){advance(2);buildChPlan();}
 
 // Stage 2
 async function buildChPlan(){
-  ld('chPlanCont','Mapping your chapters…','Batch 1 of 2 — Act 1 through midpoint');
-  var SYS='You are a professional novelist and developmental editor. Return ONLY a valid JSON object. No markdown, no text outside the JSON. Use only ASCII characters in all string values.';
-  var bs=S.beats.map(function(b){return b.name+': '+b.content.substring(0,80);}).join('\n');
+  var SYS='You are a novelist and story planner. Return ONLY a valid JSON object. No markdown, no explanation, no text outside the JSON braces. Use only ASCII characters — no apostrophes, no special punctuation in string values.';
+  var pr=san(S.premise);
+  var title=S.novelTitle.replace(/'/g,'');
+  var genre=S.genre;
+  var pov=S.pov;
+
+  // Helper: build a mini-batch prompt asking for N chapters starting at startNum
+  function batchPrompt(startNum,count,beatHint){
+    var endNum=startNum+count-1;
+    return 'For the '+genre+' novel "'+title+'", write chapter outlines for chapters '+startNum+' to '+endNum+'.'+
+      '\nPremise: '+pr+
+      '\nPOV: '+pov+
+      (beatHint ? '\nStory context: '+beatHint : '')+
+      '\nReturn ONLY this JSON with exactly '+count+' chapters:'+
+      '\n{"chapters":[{"number":'+startNum+',"title":"short title","synopsis":"One sentence only. No apostrophes.","pov_character":"name","setting":"place","wordCount":2500}]}'+
+      '\nEach synopsis must be one sentence only. No apostrophes anywhere. Return only the JSON.';
+  }
+
+  var beatA=S.beats.find(function(b){return b.id==='opening';})||{};
+  var beatM=S.beats.find(function(b){return b.id==='midpoint';})||{};
+  var beatF=S.beats.find(function(b){return b.id==='finale';})||{};
+  var hintA=san((beatA.content||'').substring(0,120));
+  var hintM=san((beatM.content||'').substring(0,120));
+  var hintF=san((beatF.content||'').substring(0,120));
+
   try{
-    var U1='For this '+S.genre+' novel "'+S.novelTitle+'", create chapters 1–14 (Act 1 through midpoint).\nBeats:\n'+bs.substring(0,700)+'\nPremise: '+san(S.premise)+'\nPOV: '+S.pov+'\nReturn JSON: {"chapters":[{"number":1,"title":"Title","synopsis":"2-3 sentences.","pov_character":"name","setting":"place","beat":"STC beat","wordCount":2500}]}\nWrite exactly 14 chapters.';
-    var d1=await askJ(SYS,U1,1300);
-    ld('chPlanCont','Batch 2 of 2 — Act 2B through finale…','Almost done');
-    var bp='Midpoint: '+(S.beats.find(function(b){return b.id==='midpoint';})||{content:''}).content+'\nAll Is Lost: '+(S.beats.find(function(b){return b.id==='allislost';})||{content:''}).content+'\nFinale: '+(S.beats.find(function(b){return b.id==='finale';})||{content:''}).content;
-    var U2='For this '+S.genre+' novel "'+S.novelTitle+'", create chapters 15–26 (Act 2B through finale).\nKey beats:\n'+bp+'\nPremise: '+san(S.premise)+'\nPOV: '+S.pov+'\nReturn JSON: {"chapters":[{"number":15,"title":"Title","synopsis":"2-3 sentences.","pov_character":"name","setting":"place","beat":"STC beat","wordCount":2500}]}\nWrite exactly 12 chapters (15–26).';
-    var d2=await askJ(SYS,U2,1300);
-    var all=(d1.chapters||[]).concat(d2.chapters||[]);
-    S.chapters=all.map(function(ch){return Object.assign({},ch,{status:'pending',content:'',score:0,revisions:0,critique:'',issues:[],strengths:[],improvePriority:'',approved:false});});
-    var tw=S.chapters.reduce(function(s,c){return s+(c.wordCount||2500);},0);
+    // 4 small batches of 6-7 chapters — each fits comfortably in 800 tokens
+    ld('chPlanCont','Planning chapters 1-6…','Batch 1 of 4');
+    var r1=await askJ(SYS,batchPrompt(1,6,'Act 1: '+hintA),800);
+
+    ld('chPlanCont','Planning chapters 7-13…','Batch 2 of 4');
+    var r2=await askJ(SYS,batchPrompt(7,7,'Approaching midpoint: '+hintM),800);
+
+    ld('chPlanCont','Planning chapters 14-19…','Batch 3 of 4');
+    var r3=await askJ(SYS,batchPrompt(14,6,'After midpoint, stakes rising'),800);
+
+    ld('chPlanCont','Planning chapters 20-26…','Batch 4 of 4');
+    var r4=await askJ(SYS,batchPrompt(20,7,'Finale: '+hintF),800);
+
+    var all=(r1.chapters||[]).concat(r2.chapters||[],r3.chapters||[],r4.chapters||[]);
+    if(all.length===0)throw new Error('No chapters returned from API. Please try again.');
+
+    S.chapters=all.map(function(ch){
+      return Object.assign({},ch,{status:'pending',content:'',score:0,revisions:0,critique:'',issues:[],strengths:[],improvePriority:'',approved:false});
+    });
+
+    var tw=S.chapters.reduce(function(s,ch){return s+(ch.wordCount||2500);},0);
     document.getElementById('stCh').textContent=S.chapters.length;
     document.getElementById('stWc').textContent=Math.round(tw/1000)+'k';
-    document.getElementById('stPov').textContent=S.pov.split(' ')[0];
+    document.getElementById('stPov').textContent=pov.split(' ')[0];
     document.getElementById('chStats').classList.remove('hidden');
     renderChPlan();
     document.getElementById('chPlanApprove').classList.remove('hidden');
-    document.getElementById('novstat').textContent=S.genre+' · '+S.chapters.length+' Chapters Planned';
+    document.getElementById('novstat').textContent=genre+' · '+S.chapters.length+' Chapters Planned';
   }catch(e){er('chPlanCont',e.message);}
 }
 function renderChPlan(){
