@@ -4,2409 +4,708 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NovelForge — AI Novel Writing Agent</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --ink: #1a1208;
-    --ink2: #3d2f1e;
-    --ink3: #6b5740;
-    --parch: #faf6ee;
-    --parch2: #f3ece0;
-    --parch3: #e8dfc9;
-    --gold: #b8872a;
-    --gold2: #d4a843;
-    --gold3: #f0c96a;
-    --red: #8b2020;
-    --teal: #1a6b6b;
-    --border: rgba(90,60,20,0.18);
-    --border2: rgba(90,60,20,0.35);
-    --shadow: 0 2px 16px rgba(30,15,0,0.10);
-    --r: 10px;
-    --font-display: 'Playfair Display', Georgia, serif;
-    --font-body: 'Source Serif 4', Georgia, serif;
-    --font-mono: 'JetBrains Mono', monospace;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--parch);
-    color: var(--ink);
-    font-family: var(--font-body);
-    font-size: 15px;
-    line-height: 1.7;
-    min-height: 100vh;
-  }
-
-  /* Layout */
-  #app { display: flex; height: 100vh; overflow: hidden; }
-
-  /* Sidebar */
-  #sidebar {
-    width: 260px;
-    min-width: 260px;
-    background: var(--ink2);
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid rgba(255,255,255,0.07);
-    overflow-y: auto;
-  }
-
-  .sidebar-logo {
-    padding: 24px 20px 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-  }
-
-  .sidebar-logo h1 {
-    font-family: var(--font-display);
-    font-size: 22px;
-    font-weight: 700;
-    font-style: italic;
-    color: var(--gold3);
-    letter-spacing: 0.02em;
-  }
-
-  .sidebar-logo p {
-    font-size: 11px;
-    color: rgba(255,255,255,0.4);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-top: 2px;
-    font-family: var(--font-mono);
-  }
-
-  .stage-nav {
-    padding: 16px 0;
-    flex: 1;
-  }
-
-  .stage-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: rgba(255,255,255,0.3);
-    padding: 4px 20px 8px;
-    font-family: var(--font-mono);
-  }
-
-  .stage-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 20px;
-    cursor: pointer;
-    transition: background 0.15s;
-    border-left: 3px solid transparent;
-  }
-
-  .stage-item:hover { background: rgba(255,255,255,0.06); }
-
-  .stage-item.active {
-    background: rgba(212,168,67,0.12);
-    border-left-color: var(--gold2);
-  }
-
-  .stage-item.done .stage-icon { background: var(--teal); color: #fff; }
-  .stage-item.active .stage-icon { background: var(--gold); color: #fff; }
-
-  .stage-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 600;
-    flex-shrink: 0;
-    font-family: var(--font-mono);
-  }
-
-  .stage-name {
-    font-size: 13px;
-    color: rgba(255,255,255,0.65);
-    font-family: var(--font-body);
-  }
-
-  .stage-item.active .stage-name { color: var(--gold3); }
-
-  .novel-info {
-    padding: 14px 20px;
-    border-top: 1px solid rgba(255,255,255,0.07);
-    font-size: 12px;
-    color: rgba(255,255,255,0.35);
-  }
-
-  .novel-info strong {
-    display: block;
-    color: rgba(255,255,255,0.6);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 4px;
-  }
-
-  /* Main content */
-  #main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  #topbar {
-    background: var(--parch2);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 28px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
-
-  .topbar-title {
-    font-family: var(--font-display);
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--ink2);
-  }
-
-  .topbar-sub {
-    font-size: 12px;
-    color: var(--ink3);
-    font-family: var(--font-mono);
-    margin-top: 1px;
-  }
-
-  .badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-family: var(--font-mono);
-    font-weight: 500;
-    letter-spacing: 0.04em;
-  }
-
-  .badge-genre {
-    background: rgba(184,135,42,0.15);
-    color: var(--gold);
-    border: 1px solid rgba(184,135,42,0.25);
-  }
-
-  .badge-chapter {
-    background: rgba(26,107,107,0.12);
-    color: var(--teal);
-    border: 1px solid rgba(26,107,107,0.2);
-  }
-
-  #content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 28px 32px 40px;
-  }
-
-  /* Cards */
-  .card {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    padding: 22px 24px;
-    margin-bottom: 18px;
-    box-shadow: var(--shadow);
-  }
-
-  .card-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 14px;
-    gap: 12px;
-  }
-
-  .card-title {
-    font-family: var(--font-display);
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--ink2);
-  }
-
-  .card-sub {
-    font-size: 12px;
-    color: var(--ink3);
-    margin-top: 2px;
-    font-family: var(--font-mono);
-  }
-
-  /* Inputs */
-  textarea, input[type=text] {
-    width: 100%;
-    border: 1px solid var(--border2);
-    border-radius: 8px;
-    padding: 12px 14px;
-    font-family: var(--font-body);
-    font-size: 14.5px;
-    color: var(--ink);
-    background: var(--parch);
-    resize: vertical;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    line-height: 1.65;
-  }
-
-  textarea:focus, input:focus {
-    outline: none;
-    border-color: var(--gold2);
-    box-shadow: 0 0 0 3px rgba(212,168,67,0.12);
-  }
-
-  /* Buttons */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 9px 18px;
-    border-radius: 8px;
-    font-family: var(--font-body);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    border: none;
-  }
-
-  .btn-primary {
-    background: var(--ink2);
-    color: var(--gold3);
-  }
-
-  .btn-primary:hover { background: var(--ink); }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .btn-gold {
-    background: var(--gold);
-    color: #fff;
-  }
-
-  .btn-gold:hover { background: var(--gold2); }
-
-  .btn-outline {
-    background: transparent;
-    color: var(--ink2);
-    border: 1px solid var(--border2);
-  }
-
-  .btn-outline:hover { background: var(--parch2); }
-
-  .btn-approve {
-    background: var(--teal);
-    color: #fff;
-  }
-
-  .btn-approve:hover { background: #145858; }
-
-  .btn-sm { padding: 6px 13px; font-size: 13px; }
-
-  /* Beat sheet */
-  .beat-item {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-bottom: 10px;
-    overflow: hidden;
-  }
-
-  .beat-header {
-    display: flex;
-    align-items: center;
-    padding: 11px 16px;
-    background: var(--parch2);
-    gap: 10px;
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .beat-num {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--gold);
-    font-weight: 500;
-    min-width: 30px;
-  }
-
-  .beat-name {
-    font-family: var(--font-display);
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--ink2);
-    flex: 1;
-  }
-
-  .beat-page {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--ink3);
-  }
-
-  .beat-body {
-    padding: 14px 16px;
-    display: none;
-  }
-
-  .beat-body.open { display: block; }
-
-  .beat-body textarea {
-    min-height: 80px;
-    font-size: 14px;
-  }
-
-  /* Chapter list */
-  .chapter-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 11px 14px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-bottom: 8px;
-    background: #fff;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .chapter-row:hover { border-color: var(--gold2); background: var(--parch); }
-  .chapter-row.active { border-color: var(--gold); background: rgba(212,168,67,0.06); }
-
-  .ch-num {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--gold);
-    font-weight: 500;
-    min-width: 32px;
-  }
-
-  .ch-title {
-    flex: 1;
-    font-family: var(--font-display);
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--ink2);
-  }
-
-  .ch-status {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--ink3);
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .dot-pending { background: var(--parch3); border: 1px solid var(--border2); }
-  .dot-writing { background: var(--gold2); }
-  .dot-done { background: var(--teal); }
-  .dot-approved { background: #2a8b3a; }
-
-  /* Rating */
-  .rating-bar {
-    height: 8px;
-    border-radius: 4px;
-    background: var(--parch3);
-    margin: 6px 0;
-    overflow: hidden;
-  }
-
-  .rating-fill {
-    height: 100%;
-    border-radius: 4px;
-    background: linear-gradient(90deg, var(--gold) 0%, var(--teal) 80%);
-    transition: width 1s ease;
-  }
-
-  .score-display {
-    font-family: var(--font-display);
-    font-size: 36px;
-    font-weight: 700;
-    font-style: italic;
-    color: var(--gold);
-  }
-
-  .score-10 { color: var(--teal); }
-
-  /* Progress indicator */
-  .progress-steps {
-    display: flex;
-    gap: 0;
-    margin-bottom: 24px;
-  }
-
-  .ps {
-    flex: 1;
-    height: 4px;
-    background: var(--parch3);
-    transition: background 0.3s;
-  }
-
-  .ps:first-child { border-radius: 2px 0 0 2px; }
-  .ps:last-child { border-radius: 0 2px 2px 0; }
-  .ps.done { background: var(--teal); }
-  .ps.active { background: var(--gold2); }
-
-  /* Loading */
-  .loading-card {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    padding: 32px 24px;
-    text-align: center;
-    box-shadow: var(--shadow);
-  }
-
-  .quill-anim {
-    font-size: 28px;
-    display: inline-block;
-    animation: quillWrite 0.8s ease-in-out infinite alternate;
-    margin-bottom: 10px;
-  }
-
-  @keyframes quillWrite {
-    from { transform: rotate(-8deg) translateX(-4px); }
-    to   { transform: rotate(4deg) translateX(4px); }
-  }
-
-  .loading-text {
-    font-family: var(--font-display);
-    font-style: italic;
-    color: var(--ink3);
-    font-size: 15px;
-  }
-
-  .loading-sub {
-    font-size: 12px;
-    color: var(--ink3);
-    font-family: var(--font-mono);
-    margin-top: 6px;
-    opacity: 0.7;
-  }
-
-  /* Prose display */
-  .prose-block {
-    font-family: var(--font-body);
-    font-size: 15.5px;
-    line-height: 1.85;
-    color: var(--ink);
-    white-space: pre-wrap;
-    background: var(--parch);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px 22px;
-    max-height: 500px;
-    overflow-y: auto;
-  }
-
-  /* Critique block */
-  .critique-section {
-    border-left: 3px solid var(--gold2);
-    padding: 12px 16px;
-    background: rgba(212,168,67,0.06);
-    border-radius: 0 8px 8px 0;
-    margin-top: 12px;
-  }
-
-  .critique-section h4 {
-    font-family: var(--font-display);
-    font-size: 13px;
-    font-weight: 600;
-    font-style: italic;
-    color: var(--ink2);
-    margin-bottom: 6px;
-  }
-
-  .critique-section p {
-    font-size: 13.5px;
-    color: var(--ink2);
-    line-height: 1.6;
-  }
-
-  /* Tag row */
-  .tag-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin-top: 10px;
-  }
-
-  .tag {
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 11.5px;
-    font-family: var(--font-mono);
-    background: var(--parch2);
-    border: 1px solid var(--border);
-    color: var(--ink3);
-  }
-
-  /* Split view */
-  .split-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-  }
-
-  @media (max-width: 900px) {
-    .split-grid { grid-template-columns: 1fr; }
-  }
-
-  /* Dividers */
-  .section-divider {
-    font-family: var(--font-display);
-    font-size: 13px;
-    font-style: italic;
-    color: var(--ink3);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 24px 0 16px;
-  }
-
-  .section-divider::before, .section-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  /* Toast */
-  #toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: var(--ink2);
-    color: var(--gold3);
-    padding: 10px 18px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-family: var(--font-body);
-    opacity: 0;
-    transform: translateY(8px);
-    transition: all 0.3s;
-    z-index: 100;
-    pointer-events: none;
-  }
-
-  #toast.show { opacity: 1; transform: translateY(0); }
-
-  /* Scrollbars */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
-
-  /* Heading row */
-  .heading-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 18px;
-  }
-
-  .heading-row h2 {
-    font-family: var(--font-display);
-    font-size: 21px;
-    font-weight: 700;
-    color: var(--ink);
-  }
-
-  .heading-row p {
-    font-size: 13px;
-    color: var(--ink3);
-    margin-top: 2px;
-  }
-
-  /* Stats row */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 22px;
-  }
-
-  .stat-box {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    padding: 14px 16px;
-    text-align: center;
-  }
-
-  .stat-val {
-    font-family: var(--font-display);
-    font-size: 26px;
-    font-weight: 700;
-    font-style: italic;
-    color: var(--ink2);
-    line-height: 1.1;
-  }
-
-  .stat-label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--ink3);
-    margin-top: 3px;
-  }
-
-  .action-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 16px;
-  }
-
-  .chapter-content-area {
-    margin-top: 14px;
-  }
-
-  .tab-bar {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 16px;
-  }
-
-  .tab {
-    padding: 8px 18px;
-    font-size: 13px;
-    font-family: var(--font-body);
-    color: var(--ink3);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: all 0.15s;
-  }
-
-  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
-  .tab:hover { color: var(--ink2); }
-
-  .hidden { display: none !important; }
-
-  /* API Key Modal */
-  #api-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(26,15,0,0.72);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 999;
-    backdrop-filter: blur(3px);
-  }
-  #api-modal-overlay.open {
-    display: flex;
-  }
-
-  #api-modal {
-    background: var(--parch);
-    border: 1px solid var(--border2);
-    border-radius: 14px;
-    padding: 36px 40px;
-    max-width: 480px;
-    width: 90%;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.35);
-  }
-
-  #api-modal h2 {
-    font-family: var(--font-display);
-    font-size: 26px;
-    font-weight: 700;
-    font-style: italic;
-    color: var(--ink);
-    margin-bottom: 4px;
-  }
-
-  #api-modal .modal-sub {
-    font-size: 13px;
-    color: var(--ink3);
-    font-family: var(--font-mono);
-    margin-bottom: 22px;
-  }
-
-  .api-key-input-wrap {
-    position: relative;
-    margin-bottom: 14px;
-  }
-
-  .api-key-input-wrap input {
-    padding-right: 44px;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    letter-spacing: 0.04em;
-  }
-
-  .key-toggle {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--ink3);
-    font-size: 15px;
-    padding: 4px;
-    line-height: 1;
-  }
-
-  .modal-help {
-    font-size: 12.5px;
-    color: var(--ink3);
-    line-height: 1.6;
-    margin-bottom: 20px;
-  }
-
-  .modal-help a {
-    color: var(--gold);
-    text-decoration: none;
-  }
-
-  .modal-help a:hover { text-decoration: underline; }
-
-  .modal-error {
-    background: rgba(139,32,32,0.08);
-    border: 1px solid rgba(139,32,32,0.2);
-    border-radius: 7px;
-    padding: 9px 13px;
-    font-size: 13px;
-    color: var(--red);
-    margin-bottom: 12px;
-    display: none;
-  }
-
-  .key-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 20px;
-    border-top: 1px solid rgba(255,255,255,0.07);
-    cursor: pointer;
-  }
-
-  .key-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--teal);
-    flex-shrink: 0;
-  }
-
-  .key-label {
-    font-size: 11px;
-    color: rgba(255,255,255,0.4);
-    font-family: var(--font-mono);
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .key-change {
-    font-size: 10px;
-    color: rgba(255,255,255,0.25);
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-
-  /* Provider tabs */
-  .provider-tab {
-    padding: 8px 18px;
-    font-size: 13px;
-    font-family: var(--font-body);
-    color: var(--ink3);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: all 0.15s;
-    user-select: none;
-  }
-
-  .provider-tab:hover { color: var(--ink2); }
-  .provider-tab.active { color: var(--gold); border-bottom-color: var(--gold); font-weight: 500; }
-
-  .field-label {
-    display: block;
-    font-size: 12px;
-    font-family: var(--font-mono);
-    color: var(--ink3);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    margin-bottom: 5px;
-    font-weight: 500;
-  }
-
-  .field-select {
-    width: 100%;
-    border: 1px solid var(--border2);
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-family: var(--font-body);
-    font-size: 14px;
-    color: var(--ink);
-    background: var(--parch);
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b5740' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 32px;
-    cursor: pointer;
-  }
-
-  .field-select:focus { outline: none; border-color: var(--gold2); box-shadow: 0 0 0 3px rgba(212,168,67,0.12); }
-
-  #api-modal code {
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-    background: var(--parch2);
-    padding: 1px 5px;
-    border-radius: 4px;
-    color: var(--ink2);
-  }
+:root{--ink:#1a1208;--ink2:#3d2f1e;--ink3:#6b5740;--parch:#faf6ee;--parch2:#f3ece0;--parch3:#e8dfc9;--gold:#b8872a;--gold2:#d4a843;--gold3:#f0c96a;--red:#8b2020;--teal:#1a6b6b;--green:#1a6b2a;--border:rgba(90,60,20,0.18);--border2:rgba(90,60,20,0.35);--shadow:0 2px 16px rgba(30,15,0,0.10);--fd:'Playfair Display',Georgia,serif;--fb:'Source Serif 4',Georgia,serif;--fm:'JetBrains Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--parch);color:var(--ink);font-family:var(--fb);font-size:15px;line-height:1.7;min-height:100vh}
+#app{display:flex;height:100vh;overflow:hidden}
+#sidebar{width:260px;min-width:260px;background:var(--ink2);display:flex;flex-direction:column;overflow-y:auto}
+.slogo{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.slogo h1{font-family:var(--fd);font-size:22px;font-weight:700;font-style:italic;color:var(--gold3)}
+.slogo p{font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:.08em;text-transform:uppercase;margin-top:2px;font-family:var(--fm)}
+.snav{padding:16px 0;flex:1}
+.slabel{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,0.3);padding:4px 20px 8px;font-family:var(--fm)}
+.sitem{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;border-left:3px solid transparent;transition:background .15s}
+.sitem:hover{background:rgba(255,255,255,0.06)}
+.sitem.active{background:rgba(212,168,67,0.12);border-left-color:var(--gold2)}
+.sitem.done .sicon{background:var(--teal);color:#fff}
+.sitem.active .sicon{background:var(--gold);color:#fff}
+.sicon{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;font-family:var(--fm)}
+.sname{font-size:13px;color:rgba(255,255,255,0.65)}
+.sitem.active .sname{color:var(--gold3)}
+.sinfo{padding:14px 20px;border-top:1px solid rgba(255,255,255,0.07);font-size:12px;color:rgba(255,255,255,0.35)}
+.sinfo strong{display:block;color:rgba(255,255,255,0.6);font-family:var(--fm);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+#keyind{display:flex;align-items:center;gap:6px;padding:10px 20px;border-top:1px solid rgba(255,255,255,0.07);cursor:pointer}
+#keyind:hover{background:rgba(255,255,255,0.05)}
+.kdot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.15);flex-shrink:0}
+.klabel{font-size:11px;color:rgba(255,255,255,0.4);font-family:var(--fm);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kchange{font-size:10px;color:rgba(255,255,255,0.25);font-family:var(--fm);text-transform:uppercase;letter-spacing:.06em}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#topbar{background:var(--parch2);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ttitle{font-family:var(--fd);font-size:17px;font-weight:600;color:var(--ink2)}
+.tsub{font-size:12px;color:var(--ink3);font-family:var(--fm);margin-top:1px}
+#ratebadge{display:none;font-family:var(--fm);font-size:11px;color:var(--gold);background:rgba(184,135,42,0.1);border:1px solid rgba(184,135,42,0.2);padding:3px 10px;border-radius:20px}
+#content{flex:1;overflow-y:auto;padding:28px 32px 40px}
+.card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:22px 24px;margin-bottom:18px;box-shadow:var(--shadow)}
+.ctitle{font-family:var(--fd);font-size:16px;font-weight:600;color:var(--ink2)}
+.csub{font-size:12px;color:var(--ink3);margin-top:2px;font-family:var(--fm)}
+.hrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.hrow h2{font-family:var(--fd);font-size:21px;font-weight:700;color:var(--ink)}
+.hrow p{font-size:13px;color:var(--ink3);margin-top:2px}
+.divider{font-family:var(--fd);font-size:13px;font-style:italic;color:var(--ink3);display:flex;align-items:center;gap:10px;margin:24px 0 16px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+textarea,input[type=text],input[type=password]{width:100%;border:1px solid var(--border2);border-radius:8px;padding:12px 14px;font-family:var(--fb);font-size:14.5px;color:var(--ink);background:var(--parch);resize:vertical;transition:border-color .2s,box-shadow .2s;line-height:1.65}
+textarea:focus,input:focus{outline:none;border-color:var(--gold2);box-shadow:0 0 0 3px rgba(212,168,67,0.12)}
+select{width:100%;border:1px solid var(--border2);border-radius:8px;padding:10px 32px 10px 12px;font-family:var(--fb);font-size:14px;color:var(--ink);background:var(--parch) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b5740' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center;appearance:none;cursor:pointer}
+select:focus{outline:none;border-color:var(--gold2)}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-family:var(--fb);font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;border:none}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-p{background:var(--ink2);color:var(--gold3)}
+.btn-p:hover:not(:disabled){background:var(--ink)}
+.btn-g{background:var(--gold);color:#fff}
+.btn-g:hover:not(:disabled){background:var(--gold2)}
+.btn-o{background:transparent;color:var(--ink2);border:1px solid var(--border2)}
+.btn-o:hover:not(:disabled){background:var(--parch2)}
+.btn-a{background:var(--teal);color:#fff}
+.btn-a:hover:not(:disabled){background:#145858}
+.btn-sm{padding:6px 13px;font-size:13px}
+.arow{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-family:var(--fm);font-weight:500;letter-spacing:.04em}
+.bg{background:rgba(184,135,42,0.15);color:var(--gold);border:1px solid rgba(184,135,42,0.25)}
+.bc{background:rgba(26,107,107,0.12);color:var(--teal);border:1px solid rgba(26,107,107,0.2)}
+.tag{padding:3px 10px;border-radius:20px;font-size:11.5px;font-family:var(--fm);background:var(--parch2);border:1px solid var(--border);color:var(--ink3)}
+.tagrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.bitem{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
+.bhdr{display:flex;align-items:center;padding:11px 16px;background:var(--parch2);gap:10px;cursor:pointer;user-select:none}
+.bnum{font-family:var(--fm);font-size:11px;color:var(--gold);font-weight:500;min-width:32px}
+.bname{font-family:var(--fd);font-size:13.5px;font-weight:600;color:var(--ink2);flex:1}
+.bprev{font-size:11px;color:var(--ink3);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bbody{padding:14px 16px;display:none}
+.bbody.open{display:block}
+.bdesc{font-size:12px;color:var(--ink3);margin-bottom:8px;font-style:italic}
+.crow{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:#fff;cursor:pointer;transition:all .15s}
+.crow:hover{border-color:var(--gold2);background:var(--parch)}
+.crow.active{border-color:var(--gold);background:rgba(212,168,67,0.06)}
+.cnum{font-family:var(--fm);font-size:12px;color:var(--gold);font-weight:500;min-width:36px}
+.ctit{flex:1;font-family:var(--fd);font-size:14px;font-weight:600;color:var(--ink2)}
+.cstat{font-family:var(--fm);font-size:11px;color:var(--ink3)}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dp{background:var(--parch3);border:1px solid var(--border2)}
+.dw{background:var(--gold2)}
+.dd{background:var(--teal)}
+.da{background:var(--green)}
+.srow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.sbox{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center}
+.sval{font-family:var(--fd);font-size:26px;font-weight:700;font-style:italic;color:var(--ink2);line-height:1.1}
+.slbl{font-family:var(--fm);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-top:3px}
+.rbar{height:8px;border-radius:4px;background:var(--parch3);margin:6px 0;overflow:hidden}
+.rfill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold) 0%,var(--teal) 80%);transition:width 1s ease}
+.score{font-family:var(--fd);font-size:36px;font-weight:700;font-style:italic;color:var(--gold)}
+.score.hi{color:var(--teal)}
+.crit{border-left:3px solid var(--gold2);padding:12px 16px;background:rgba(212,168,67,0.06);border-radius:0 8px 8px 0;margin-top:12px}
+.crit.t{border-left-color:var(--teal);background:rgba(26,107,107,0.05)}
+.crit h4{font-family:var(--fd);font-size:13px;font-weight:600;font-style:italic;color:var(--ink2);margin-bottom:6px}
+.crit p{font-size:13.5px;color:var(--ink2);line-height:1.6}
+.prose{font-family:var(--fb);font-size:15px;line-height:1.85;color:var(--ink);white-space:pre-wrap;background:var(--parch);border:1px solid var(--border);border-radius:8px;padding:20px 22px;max-height:480px;overflow-y:auto}
+.tabbar{display:flex;border-bottom:1px solid var(--border);margin-bottom:16px}
+.tbtn{padding:8px 18px;font-size:13px;font-family:var(--fb);color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;background:none;border-top:none;border-left:none;border-right:none;transition:all .15s}
+.tbtn:hover{color:var(--ink2)}
+.tbtn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.lcrd{background:#fff;border:1px solid var(--border);border-radius:10px;padding:32px 24px;text-align:center;box-shadow:var(--shadow)}
+.quill{font-size:28px;display:inline-block;animation:qw .8s ease-in-out infinite alternate;margin-bottom:10px}
+@keyframes qw{from{transform:rotate(-8deg) translateX(-4px)}to{transform:rotate(4deg) translateX(4px)}}
+.ltxt{font-family:var(--fd);font-style:italic;color:var(--ink3);font-size:15px}
+.lsub{font-size:12px;color:var(--ink3);font-family:var(--fm);margin-top:6px;opacity:.7}
+.errcrd{background:rgba(139,32,32,0.06);border:1px solid rgba(139,32,32,0.25);border-radius:10px;padding:18px 20px;color:var(--red);font-size:14px}
+.sgrid{display:grid;grid-template-columns:240px 1fr;gap:18px}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--ink2);color:var(--gold3);padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(8px);transition:all .3s;z-index:200;pointer-events:none}
+#toast.show{opacity:1;transform:translateY(0)}
+#mov{position:fixed;inset:0;background:rgba(26,15,0,0.72);display:none;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(3px)}
+#mov.open{display:flex}
+#mbox{background:var(--parch);border:1px solid var(--border2);border-radius:14px;padding:32px 36px;max-width:540px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.35)}
+#mbox h2{font-family:var(--fd);font-size:24px;font-weight:700;font-style:italic;color:var(--ink);margin-bottom:2px}
+.msub{font-size:12px;color:var(--ink3);font-family:var(--fm);margin-bottom:20px}
+.ptabs{display:flex;border-bottom:1px solid var(--border2);margin-bottom:18px}
+.ptab{padding:8px 18px;font-size:13px;font-family:var(--fb);color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;background:none;border-top:none;border-left:none;border-right:none;transition:all .15s}
+.ptab:hover{color:var(--ink2)}
+.ptab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:500}
+.mpanel{display:none}
+.mpanel.active{display:block}
+.flbl{display:block;font-size:12px;font-family:var(--fm);color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:500}
+.mhelp{font-size:12.5px;color:var(--ink3);line-height:1.6;margin-bottom:14px}
+.mhelp a{color:var(--gold);text-decoration:none}
+.mhelp a:hover{text-decoration:underline}
+.mhelp code{font-family:var(--fm);font-size:11.5px;background:var(--parch2);padding:1px 5px;border-radius:4px;color:var(--ink2)}
+.mwarn{background:rgba(139,32,32,0.07);border:1px solid rgba(139,32,32,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#5a1010;line-height:1.55}
+.minfo{background:rgba(184,135,42,0.08);border:1px solid rgba(184,135,42,0.2);border-radius:7px;padding:10px 12px;font-size:12px;color:var(--ink3);line-height:1.55;margin-top:8px}
+.kwrap{position:relative}
+.kwrap input{padding-right:44px}
+.eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink3);font-size:15px;padding:4px;line-height:1}
+#merr{background:rgba(139,32,32,0.08);border:1px solid rgba(139,32,32,0.2);border-radius:7px;padding:9px 13px;font-size:13px;color:var(--red);margin-top:12px;display:none}
+.prow{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.hidden{display:none!important}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 </style>
 </head>
 <body>
 <div id="app">
-  <!-- Sidebar -->
   <div id="sidebar">
-    <div class="sidebar-logo">
-      <h1>NovelForge</h1>
-      <p>AI Novel Writing Agent</p>
-    </div>
-    <nav class="stage-nav">
-      <div class="stage-label">Workflow</div>
-      <div class="stage-item active" data-stage="0" data-action="goStage" data-arg="0">
-        <div class="stage-icon" id="icon-0">1</div>
-        <div class="stage-name">Premise & Genre</div>
-      </div>
-      <div class="stage-item" data-stage="1" data-action="goStage" data-arg="1">
-        <div class="stage-icon" id="icon-1">2</div>
-        <div class="stage-name">Beat Sheet</div>
-      </div>
-      <div class="stage-item" data-stage="2" data-action="goStage" data-arg="2">
-        <div class="stage-icon" id="icon-2">3</div>
-        <div class="stage-name">Chapter Plan</div>
-      </div>
-      <div class="stage-item" data-stage="3" data-action="goStage" data-arg="3">
-        <div class="stage-icon" id="icon-3">4</div>
-        <div class="stage-name">Write Chapters</div>
-      </div>
-      <div class="stage-item" data-stage="4" data-action="goStage" data-arg="4">
-        <div class="stage-icon" id="icon-4">5</div>
-        <div class="stage-name">Final Rating</div>
-      </div>
+    <div class="slogo"><h1>NovelForge</h1><p>AI Novel Writing Agent</p></div>
+    <nav class="snav">
+      <div class="slabel">Workflow</div>
+      <div class="sitem active" id="sn0"><div class="sicon" id="si0">1</div><div class="sname">Premise &amp; Genre</div></div>
+      <div class="sitem" id="sn1"><div class="sicon" id="si1">2</div><div class="sname">Beat Sheet</div></div>
+      <div class="sitem" id="sn2"><div class="sicon" id="si2">3</div><div class="sname">Chapter Plan</div></div>
+      <div class="sitem" id="sn3"><div class="sicon" id="si3">4</div><div class="sname">Write Chapters</div></div>
+      <div class="sitem" id="sn4"><div class="sicon" id="si4">5</div><div class="sname">Final Rating</div></div>
     </nav>
-    <div class="novel-info" id="sidebar-info">
-      <strong>Novel Status</strong>
-      <div id="sidebar-status-text">No novel started</div>
-    </div>
-    <div class="key-indicator" id="key-indicator" title="Change API key — click to edit">
-      <div class="key-dot" id="key-dot" style="background:rgba(255,255,255,0.15)"></div>
-      <div class="key-label" id="key-label">No API key set</div>
-      <div class="key-change">change</div>
-    </div>
+    <div class="sinfo"><strong>Novel Status</strong><div id="novstat">No novel started</div></div>
+    <div id="keyind"><div class="kdot" id="kdot"></div><div class="klabel" id="klabel">No API key — click to set</div><div class="kchange">edit</div></div>
   </div>
-
-  <!-- Main -->
   <div id="main">
     <div id="topbar">
-      <div>
-        <div class="topbar-title" id="topbar-title">New Novel</div>
-        <div class="topbar-sub" id="topbar-sub">Start by entering your premise or log line below</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center" id="topbar-badges">
-        <span id="rate-badge" style="display:none;font-family:var(--font-mono);font-size:11px;color:var(--gold);background:rgba(184,135,42,0.1);border:1px solid rgba(184,135,42,0.2);padding:3px 10px;border-radius:20px"></span>
-      </div>
+      <div><div class="ttitle" id="ttitle">New Novel</div><div class="tsub" id="tsub">Enter your premise below to begin</div></div>
+      <div style="display:flex;gap:8px;align-items:center"><span id="ratebadge"></span><span id="gbadge"></span></div>
     </div>
-
     <div id="content">
-      <!-- Stage 0: Premise -->
-      <div id="stage-0">
-        <div class="heading-row">
-          <div>
-            <h2>Your Story Premise</h2>
-            <p>Enter a log line, a scene, or a story idea. The agent will handle everything from here.</p>
-          </div>
-        </div>
 
+      <div id="s0">
+        <div class="hrow"><div><h2>Your Story Premise</h2><p>Enter a log line, a scene, or a story idea.</p></div></div>
         <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">Log Line or Scene</div>
-              <div class="card-sub">Be as brief or as detailed as you like</div>
-            </div>
-          </div>
-          <textarea id="premise-input" rows="6" placeholder="Example: A grieving lighthouse keeper on a remote island starts receiving radio transmissions from his dead wife — but the messages are warnings about the future, not the past.&#10;&#10;Or describe a scene, a character, a world, or just a feeling. The agent will build your novel from it."></textarea>
-          <div class="action-row">
-            <button class="btn btn-primary" id="analyze-btn">
-              ✦ Analyze Premise &amp; Detect Genre
-            </button>
-          </div>
+          <div class="ctitle">Log Line or Scene</div>
+          <div class="csub" style="margin-bottom:12px">Be as brief or as detailed as you like</div>
+          <textarea id="premise" rows="6" placeholder="Example: A grieving lighthouse keeper starts receiving radio transmissions from his dead wife — but the messages are warnings about the future, not the past."></textarea>
+          <div class="arow"><button class="btn btn-p" id="bAnalyze">✦ Analyze Premise &amp; Detect Genre</button></div>
         </div>
-
-        <div id="premise-result" class="hidden">
-          <div class="section-divider">Analysis</div>
-          <div class="card" id="genre-card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">Genre Detection &amp; Story Analysis</div>
-                <div class="card-sub">Identified by the writing agent</div>
-              </div>
-            </div>
-            <div id="genre-result-text"></div>
-          </div>
-          <div class="action-row">
-            <button class="btn btn-approve" id="approve-premise-btn">✓ Approve &amp; Build Beat Sheet</button>
-            <button class="btn btn-outline" id="revise-premise-btn">← Revise Premise</button>
+        <div id="premResult" class="hidden">
+          <div class="divider">Analysis</div>
+          <div class="card"><div class="ctitle">Genre Detection &amp; Story Analysis</div><div class="csub" style="margin-bottom:14px">Identified by the writing agent</div><div id="genreResult"></div></div>
+          <div class="arow">
+            <button class="btn btn-a" id="bApprovePrem">✓ Approve &amp; Build Beat Sheet</button>
+            <button class="btn btn-o" id="bRevisePrem">← Revise Premise</button>
           </div>
         </div>
       </div>
 
-      <!-- Stage 1: Beat Sheet -->
-      <div id="stage-1" class="hidden">
-        <div class="heading-row">
-          <div>
-            <h2>Save The Cat Beat Sheet</h2>
-            <p>Your novel's structural backbone. Click any beat to expand and edit.</p>
-          </div>
-          <div id="beat-approve-btn" class="hidden">
-            <button class="btn btn-approve" id="approve-beat-btn">✓ Approve Beat Sheet</button>
-          </div>
+      <div id="s1" class="hidden">
+        <div class="hrow">
+          <div><h2>Save The Cat Beat Sheet</h2><p>Click any beat to expand and edit.</p></div>
+          <div id="beatApproveWrap" class="hidden"><button class="btn btn-a" id="bApproveBeats">✓ Approve Beat Sheet</button></div>
         </div>
-        <div id="beat-sheet-container"></div>
+        <div id="beatCont"></div>
       </div>
 
-      <!-- Stage 2: Chapter Plan -->
-      <div id="stage-2" class="hidden">
-        <div class="heading-row">
-          <div>
-            <h2>Chapter Plan</h2>
-            <p>Your novel has been divided into chapters. Edit any synopsis before approving.</p>
-          </div>
+      <div id="s2" class="hidden">
+        <div class="hrow"><div><h2>Chapter Plan</h2><p>Edit any synopsis before approving.</p></div></div>
+        <div id="chStats" class="srow hidden">
+          <div class="sbox"><div class="sval" id="stCh">—</div><div class="slbl">Chapters</div></div>
+          <div class="sbox"><div class="sval" id="stWc">—</div><div class="slbl">Est. Words</div></div>
+          <div class="sbox"><div class="sval">3</div><div class="slbl">Acts</div></div>
+          <div class="sbox"><div class="sval" id="stPov">—</div><div class="slbl">POV</div></div>
         </div>
-        <div id="chapter-stats" class="stats-row hidden">
-          <div class="stat-box"><div class="stat-val" id="stat-chapters">—</div><div class="stat-label">Chapters</div></div>
-          <div class="stat-box"><div class="stat-val" id="stat-words-est">—</div><div class="stat-label">Est. Words</div></div>
-          <div class="stat-box"><div class="stat-val" id="stat-acts">3</div><div class="stat-label">Acts</div></div>
-          <div class="stat-box"><div class="stat-val" id="stat-pov">—</div><div class="stat-label">POV Style</div></div>
+        <div id="chPlanCont"></div>
+        <div id="chPlanApprove" class="arow hidden"><button class="btn btn-a" id="bApproveChPlan">✓ Approve Plan &amp; Begin Writing</button></div>
+      </div>
+
+      <div id="s3" class="hidden">
+        <div class="hrow">
+          <div><h2>Writing Studio</h2><p>Write and refine each chapter until it scores 9/10+.</p></div>
+          <button class="btn btn-g btn-sm" id="bWriteAll">✦ Write All Chapters</button>
         </div>
-        <div id="chapter-plan-container"></div>
-        <div id="chapter-plan-approve" class="action-row hidden">
-          <button class="btn btn-approve" id="approve-chapters-btn">✓ Approve Chapter Plan &amp; Begin Writing</button>
+        <div class="sgrid">
+          <div><div style="font-family:var(--fm);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:10px">Chapter List</div><div id="chList"></div></div>
+          <div id="chEditor"><div style="text-align:center;padding:48px 0;color:var(--ink3)"><div style="font-size:32px;margin-bottom:8px">✦</div><div style="font-family:var(--fd);font-style:italic">Select a chapter to begin</div></div></div>
         </div>
       </div>
 
-      <!-- Stage 3: Write Chapters -->
-      <div id="stage-3" class="hidden">
-        <div class="heading-row">
-          <div>
-            <h2>Writing Studio</h2>
-            <p>Select a chapter to write, rate, and refine until it scores 9/10 or higher.</p>
-          </div>
-          <div>
-            <button class="btn btn-gold btn-sm" id="write-all-btn">✦ Write All Chapters</button>
-          </div>
-        </div>
-        <div class="split-grid">
-          <div>
-            <div style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink3);margin-bottom:10px;">Chapter List</div>
-            <div id="chapter-list-sidebar"></div>
-          </div>
-          <div id="chapter-editor-panel">
-            <div style="text-align:center;padding:40px 0;color:var(--ink3);">
-              <div style="font-size:28px;margin-bottom:8px;">✦</div>
-              <div style="font-family:var(--font-display);font-style:italic;">Select a chapter to begin</div>
-            </div>
-          </div>
-        </div>
+      <div id="s4" class="hidden">
+        <div class="hrow"><div><h2>Final Novel Assessment</h2><p>Your complete novel rated against genre bestsellers.</p></div></div>
+        <div id="finalCont"><div class="card" style="text-align:center;padding:40px"><div style="font-family:var(--fd);font-style:italic;color:var(--ink3);font-size:16px">Complete all chapters to unlock final assessment</div></div></div>
       </div>
 
-      <!-- Stage 4: Final Rating -->
-      <div id="stage-4" class="hidden">
-        <div class="heading-row">
-          <div>
-            <h2>Final Novel Assessment</h2>
-            <p>The complete novel is rated against bestsellers in its genre.</p>
-          </div>
-        </div>
-        <div id="final-rating-container">
-          <div class="card" style="text-align:center;padding:40px;">
-            <div style="font-family:var(--font-display);font-style:italic;color:var(--ink3);font-size:16px;">Complete all chapters to unlock final assessment</div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </div>
 
 <div id="toast"></div>
 
-<!-- API Key Modal -->
-<div id="api-modal-overlay">
-  <div id="api-modal" style="max-width:540px">
+<div id="mov">
+  <div id="mbox">
     <h2>NovelForge</h2>
-    <div class="modal-sub">AI Novel Writing Agent · Configure your AI provider</div>
-
-    <!-- Provider tabs -->
-    <div style="display:flex;gap:0;border-bottom:1px solid var(--border2);margin-bottom:18px;margin-top:4px">
-      <div class="provider-tab active" id="ptab-anthropic" data-provider="anthropic">Anthropic</div>
-      <div class="provider-tab" id="ptab-openai" data-provider="openai">OpenAI</div>
-      <div class="provider-tab" id="ptab-custom" data-provider="custom">Custom / Local</div>
+    <div class="msub">Configure your AI provider</div>
+    <div class="ptabs">
+      <button class="ptab active" id="pt-anthropic">Anthropic</button>
+      <button class="ptab" id="pt-openai">OpenAI / Groq</button>
+      <button class="ptab" id="pt-custom">Custom / Local</button>
     </div>
-
-    <!-- Anthropic panel -->
-    <div id="ppanel-anthropic">
-      <div style="background:rgba(139,32,32,0.07);border:1px solid rgba(139,32,32,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#5a1010;line-height:1.55">
-        <strong>⚠ Claude Console Free Tier keys are blocked for API generation.</strong><br>
-        Anthropic's free tier only allows use via the Workbench UI — not direct API calls from apps. Your key authenticates correctly but all generation requests are rejected with a billing error.<br><br>
-        <strong>The fix:</strong> Use the <strong>OpenAI tab → Groq</strong> option. It's completely free, fast, and works perfectly with NovelForge.
-        <button class="btn btn-approve btn-sm" id="switch-to-groq-btn" style="margin-top:8px;width:100%;justify-content:center">
-          → Switch to Groq (Free) Now
-        </button>
-      </div>
-      <p class="modal-help">
-        If you have a <strong>paid Anthropic API account</strong> with credits, paste your key below and it will work. Free Console evaluation keys will not work for generation.
-      </p>
-      <label class="field-label">Model</label>
-      <select id="anthropic-model" class="field-select">
-        <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 · Fastest &amp; cheapest ✦ Best for free tier</option>
-        <option value="claude-sonnet-4-20250514" selected>claude-sonnet-4 · Balanced quality (recommended)</option>
+    <div class="mpanel active" id="pp-anthropic">
+      <div class="mwarn"><strong>⚠ Claude Console Free Tier keys cannot run generation calls.</strong><br>Free tier keys authenticate but Anthropic blocks all generation requests. Use the OpenAI / Groq tab instead — Groq is completely free.<br><br><button class="btn btn-a btn-sm" id="bSwitchGroq" style="width:100%;justify-content:center;margin-top:4px">→ Switch to Groq (Free) Now</button></div>
+      <p class="mhelp">Paid Anthropic API account? Paste your key below.</p>
+      <label class="flbl">Model</label>
+      <select id="antModel" style="margin-bottom:12px">
+        <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 · Fastest &amp; cheapest</option>
+        <option value="claude-sonnet-4-20250514" selected>claude-sonnet-4 · Recommended</option>
         <option value="claude-opus-4-6">claude-opus-4-6 · Highest quality</option>
       </select>
-      <label class="field-label" style="margin-top:12px">API Key</label>
-      <div class="api-key-input-wrap">
-        <input type="password" id="api-key-input" placeholder="sk-ant-api03-…" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
-        <button class="key-toggle" id="eye-anthropic" title="Show/hide key">👁</button>
-      </div>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:13px;color:var(--ink2)">
-        <input type="checkbox" id="free-tier-checkbox" checked style="width:15px;height:15px;accent-color:var(--gold);cursor:pointer">
-        <span>This is a <strong>Claude Console Free Tier</strong> key (no billing credits required)</span>
-      </label>
-      <div style="margin-top:8px;padding:10px 12px;background:rgba(184,135,42,0.08);border:1px solid rgba(184,135,42,0.2);border-radius:7px;font-size:12px;color:var(--ink3);line-height:1.55">
-        ✦ Free Tier mode enables automatic rate limiting (13s between calls) to stay within the 5 requests/minute limit shown in your Console. Chapters are written in focused segments to stay under the 4K output token/minute cap.
-      </div>
+      <label class="flbl">API Key</label>
+      <div class="kwrap"><input type="password" id="antKey" placeholder="sk-ant-api03-…" autocomplete="off"><button class="eye" id="eyeAnt">👁</button></div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:13px;color:var(--ink2)"><input type="checkbox" id="freeTierCb" checked style="width:15px;height:15px;accent-color:var(--gold);cursor:pointer"><span>Claude Console Free Tier key</span></label>
     </div>
-
-    <!-- OpenAI panel -->
-    <div id="ppanel-openai" class="hidden">
-      <p class="modal-help">
-        Works with any OpenAI-compatible provider. Quick-fill a free option below, or enter your own endpoint and key.
-      </p>
-      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
-        <button class="btn btn-outline btn-sm qf-btn" data-ep="https://api.openai.com/v1/chat/completions" data-model="gpt-4o-mini">OpenAI gpt-4o-mini</button>
-        <button class="btn btn-outline btn-sm qf-btn" data-ep="https://api.groq.com/openai/v1/chat/completions" data-model="llama-3.3-70b-versatile">Groq (free tier) ✦ Free</button>
-        <button class="btn btn-outline btn-sm qf-btn" data-ep="https://openrouter.ai/api/v1/chat/completions" data-model="meta-llama/llama-3.3-70b-instruct:free">OpenRouter (free)</button>
-        <button class="btn btn-outline btn-sm qf-btn" data-ep="https://api.together.xyz/v1/chat/completions" data-model="meta-llama/Llama-3-70b-chat-hf">Together AI</button>
+    <div class="mpanel" id="pp-openai">
+      <p class="mhelp">Works with Groq (free), OpenAI, OpenRouter, and any OpenAI-compatible API.<br>Get a free Groq key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>.</p>
+      <div class="prow">
+        <button class="btn btn-o btn-sm pbtn" data-ep="https://api.groq.com/openai/v1/chat/completions" data-m="llama-3.3-70b-versatile">Groq ✦ Free</button>
+        <button class="btn btn-o btn-sm pbtn" data-ep="https://api.openai.com/v1/chat/completions" data-m="gpt-4o-mini">OpenAI</button>
+        <button class="btn btn-o btn-sm pbtn" data-ep="https://openrouter.ai/api/v1/chat/completions" data-m="meta-llama/llama-3.3-70b-instruct:free">OpenRouter</button>
+        <button class="btn btn-o btn-sm pbtn" data-ep="https://api.together.xyz/v1/chat/completions" data-m="meta-llama/Llama-3-70b-chat-hf">Together</button>
       </div>
-      <label class="field-label">API Endpoint</label>
-      <input type="text" id="openai-endpoint" value="https://api.openai.com/v1/chat/completions" style="margin-bottom:10px;font-family:var(--font-mono);font-size:12px">
-      <label class="field-label">Model</label>
-      <input type="text" id="openai-model" placeholder="gpt-4o-mini, llama-3.3-70b-versatile, etc." value="gpt-4o-mini" style="margin-bottom:10px;font-family:var(--font-mono);font-size:12px">
-      <label class="field-label">API Key</label>
-      <div class="api-key-input-wrap">
-        <input type="password" id="openai-key-input" placeholder="sk-… or gsk_… or your provider key" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
-        <button class="key-toggle" id="eye-openai" title="Show/hide key">👁</button>
-      </div>
-      <p class="modal-help" style="margin-top:10px">
-        Get a free Groq key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> · Free OpenRouter models at <a href="https://openrouter.ai/models?q=free" target="_blank">openrouter.ai</a>
-      </p>
+      <label class="flbl">Endpoint</label>
+      <input type="text" id="oaEp" value="https://api.groq.com/openai/v1/chat/completions" style="margin-bottom:10px;font-family:var(--fm);font-size:12px">
+      <label class="flbl">Model</label>
+      <input type="text" id="oaMod" value="llama-3.3-70b-versatile" style="margin-bottom:10px;font-family:var(--fm);font-size:12px">
+      <label class="flbl">API Key</label>
+      <div class="kwrap"><input type="password" id="oaKey" placeholder="Your API key" autocomplete="off"><button class="eye" id="eyeOa">👁</button></div>
     </div>
-
-    <!-- Custom / Local panel -->
-    <div id="ppanel-custom" class="hidden">
-      <p class="modal-help">
-        Connect any OpenAI-compatible local or custom endpoint — Ollama, LM Studio, Jan, llama.cpp, vLLM, Hugging Face Inference, etc. No key required for local models.
-        <br><br>
-        Example endpoints: <code>http://localhost:11434/v1/chat/completions</code> (Ollama), <code>http://localhost:1234/v1/chat/completions</code> (LM Studio).
-      </p>
-      <label class="field-label">API Endpoint</label>
-      <input type="text" id="custom-endpoint" placeholder="http://localhost:11434/v1/chat/completions" style="margin-bottom:10px;font-family:var(--font-mono);font-size:12px">
-      <label class="field-label">Model name <span style="font-weight:400;color:var(--ink3)">(as required by your server)</span></label>
-      <input type="text" id="custom-model" placeholder="llama3, mistral, phi3, etc." style="margin-bottom:10px;font-family:var(--font-mono);font-size:12px">
-      <label class="field-label">API Key <span style="font-weight:400;color:var(--ink3)">(leave blank if not required)</span></label>
-      <div class="api-key-input-wrap">
-        <input type="password" id="custom-key-input" placeholder="optional" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
-        <button class="key-toggle" id="eye-custom" title="Show/hide key">👁</button>
-      </div>
+    <div class="mpanel" id="pp-custom">
+      <p class="mhelp">Connect any local endpoint — Ollama, LM Studio, vLLM, etc.<br>Example: <code>http://localhost:11434/v1/chat/completions</code></p>
+      <label class="flbl">Endpoint</label>
+      <input type="text" id="cuEp" placeholder="http://localhost:11434/v1/chat/completions" style="margin-bottom:10px;font-family:var(--fm);font-size:12px">
+      <label class="flbl">Model</label>
+      <input type="text" id="cuMod" placeholder="llama3, mistral, phi3…" style="margin-bottom:10px;font-family:var(--fm);font-size:12px">
+      <label class="flbl">API Key <span style="font-weight:400;color:var(--ink3)">(leave blank if not required)</span></label>
+      <div class="kwrap"><input type="password" id="cuKey" placeholder="optional" autocomplete="off"><button class="eye" id="eyeCu">👁</button></div>
     </div>
-
-    <div class="modal-error" id="modal-error"></div>
-
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;margin-top:16px" id="save-key-btn">
-      ✦ Save &amp; Enter NovelForge
-    </button>
-
-    <div style="margin-top:14px;font-size:11px;color:var(--ink3);text-align:center;font-family:var(--font-mono)">
-      Keys stay in this browser tab only · Never stored · Never sent except to your chosen provider
-    </div>
+    <div id="merr"></div>
+    <button class="btn btn-p" id="bSaveKey" style="width:100%;justify-content:center;padding:11px;margin-top:16px">✦ Save &amp; Enter NovelForge</button>
+    <div style="margin-top:12px;font-size:11px;color:var(--ink3);text-align:center;font-family:var(--fm)">Keys stay in this tab only · Never stored · Never shared</div>
   </div>
 </div>
 
-
-
-
-
 <script>
-// ─── State ───────────────────────────────────────────────────────────────────
-const state = {
-  stage: 0,
-  premise: '',
-  genre: '',
-  subgenre: '',
-  tone: '',
-  themes: [],
-  beats: [],
-  chapters: [],
-  currentChapter: -1,
-  novelTitle: '',
-  pov: '',
-  wordCountEst: 0,
-};
+// NovelForge — complete rebuild. ZERO inline onclick in HTML.
+// All events wired in window.onload at the bottom of this script.
 
-// ─── Provider Config ──────────────────────────────────────────────────────────
-const apiConfig = {
-  provider: 'anthropic',   // 'anthropic' | 'openai' | 'custom'
-  key: '',
-  model: 'claude-sonnet-4-20250514',
-  endpoint: '',            // used for openai + custom
-};
+var S={stage:0,premise:'',genre:'',subgenre:'',tone:'',themes:[],beats:[],chapters:[],novelTitle:'',pov:'',wordCountEst:85000,currentChapter:-1};
+var API={provider:'openai',key:'',model:'llama-3.3-70b-versatile',endpoint:'https://api.groq.com/openai/v1/chat/completions',freeTier:false};
+var curPanel='openai';
 
-// ─── Modal UI ─────────────────────────────────────────────────────────────────
-function showApiModal(openOnGroq = false) {
-  document.getElementById('api-modal-overlay').classList.add('open');
-  setErr('');
+// Rate limiter
+var RL={queue:[],lastCall:0,minGap:13000,running:false,
+  schedule:function(fn){var self=this;return new Promise(function(res,rej){self.queue.push({fn:fn,res:res,rej:rej});if(!self.running)self.flush();});},
+  flush:async function(){this.running=true;while(this.queue.length>0){var wait=Math.max(0,this.minGap-(Date.now()-this.lastCall));if(wait>0){rb(Math.ceil(wait/1000));await sl(wait);rb(0);}var j=this.queue.shift();this.lastCall=Date.now();try{j.res(await j.fn());}catch(e){j.rej(e);}}this.running=false;}};
+function sl(ms){return new Promise(function(r){setTimeout(r,ms);});}
+function rb(s){var e=document.getElementById('ratebadge');if(!e)return;if(s>0){e.textContent='⏳ '+s+'s';e.style.display='inline-block';}else{e.textContent='';e.style.display='none';}}
 
-  if (openOnGroq) {
-    // Anthropic billing blocked — drop straight onto the OpenAI/Groq tab
-    selectProvider('openai');
-    quickFill('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile');
-    setErr('⚠ Your Anthropic key is blocked for generation (free tier API restriction). ' +
-           'Use Groq below — it's completely free and just as capable. ' +
-           'Get a free key at console.groq.com/keys then paste it and connect.');
-    setTimeout(() => document.getElementById('openai-key-input')?.focus(), 120);
-    return;
+// API
+async function ask(sys,usr,mt){
+  mt=Math.min(mt||1200,1300);
+  if(!API.key){openMod();throw new Error('No API key set.');}
+  var fn=API.provider==='anthropic'?function(){return callAnt(sys,usr,mt);}:function(){return callOA(sys,usr,mt);};
+  if(API.provider==='anthropic'&&API.freeTier)return RL.schedule(fn);
+  return fn();
+}
+async function callAnt(sys,usr,mt){
+  var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':API.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:API.model,max_tokens:mt,system:sys,messages:[{role:'user',content:usr}]})});
+  var d=await r.json();
+  if(d.error){if(d.error.type==='authentication_error'){openMod();throw new Error('Invalid API key.');}if(r.status===429)throw new Error('Rate limit hit — wait 60s.');throw new Error(d.error.message||'Anthropic error');}
+  return d.content&&d.content[0]?d.content[0].text:'';
+}
+async function callOA(sys,usr,mt){
+  var h={'Content-Type':'application/json'};if(API.key)h['Authorization']='Bearer '+API.key;
+  var r=await fetch(API.endpoint,{method:'POST',headers:h,body:JSON.stringify({model:API.model,max_tokens:mt,messages:[{role:'system',content:sys},{role:'user',content:usr}]})});
+  var d=await r.json();
+  if(d.error)throw new Error(d.error.message||JSON.stringify(d.error));
+  return d.choices&&d.choices[0]?d.choices[0].message.content:'';
+}
+async function askJ(sys,usr,mt){
+  var t=await ask(sys,usr,mt);
+  var c=t.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+  try{return JSON.parse(c);}catch(e){var m=c.match(/\{[\s\S]*\}|\[[\s\S]*\]/);if(m)return JSON.parse(m[0]);throw new Error('JSON parse failed: '+c.substring(0,150));}
+}
+
+// Modal
+function openMod(groq){
+  document.getElementById('mov').classList.add('open');
+  document.getElementById('merr').style.display='none';
+  if(groq){
+    swPanel('openai');
+    document.getElementById('oaEp').value='https://api.groq.com/openai/v1/chat/completions';
+    document.getElementById('oaMod').value='llama-3.3-70b-versatile';
+    setTimeout(function(){document.getElementById('oaKey').focus();},100);
+  }else{
+    swPanel(API.provider||'openai');
+    setTimeout(function(){var id=curPanel==='anthropic'?'antKey':curPanel==='openai'?'oaKey':'cuKey';var el=document.getElementById(id);if(el)el.focus();},100);
   }
-
-  document.getElementById('api-key-input').value = apiConfig.provider === 'anthropic' ? apiConfig.key : '';
-  document.getElementById('openai-key-input').value = apiConfig.provider === 'openai' ? apiConfig.key : '';
-  document.getElementById('custom-key-input').value = apiConfig.provider === 'custom' ? apiConfig.key : '';
-  if (apiConfig.provider === 'openai') document.getElementById('openai-endpoint').value = apiConfig.endpoint || 'https://api.openai.com/v1/chat/completions';
-  if (apiConfig.provider === 'custom') document.getElementById('custom-endpoint').value = apiConfig.endpoint || '';
-  selectProvider(apiConfig.provider);
-  setTimeout(() => {
-    const active = apiConfig.provider === 'anthropic' ? 'api-key-input'
-                 : apiConfig.provider === 'openai'    ? 'openai-key-input'
-                 : 'custom-endpoint';
-    document.getElementById(active)?.focus();
-  }, 120);
 }
-
-function hideApiModal() {
-  document.getElementById('api-modal-overlay').classList.remove('open');
-}
-
-function selectProvider(p) {
-  ['anthropic','openai','custom'].forEach(id => {
-    document.getElementById('ptab-'+id).classList.toggle('active', id === p);
-    document.getElementById('ppanel-'+id).classList.toggle('hidden', id !== p);
+function closeMod(){document.getElementById('mov').classList.remove('open');}
+function swPanel(p){
+  curPanel=p;
+  ['anthropic','openai','custom'].forEach(function(id){
+    var t=document.getElementById('pt-'+id);var pan=document.getElementById('pp-'+id);
+    if(t)t.classList.toggle('active',id===p);
+    if(pan)pan.classList.toggle('active',id===p);
   });
-  apiConfig.provider = p;
 }
-
-function toggleKeyVis(inputId) {
-  const inp = document.getElementById(inputId);
-  if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-
-function setErr(msg) {
-  const el = document.getElementById('modal-error');
-  el.textContent = msg;
-  el.style.display = msg ? 'block' : 'none';
-}
-
-// ─── Save & Verify ────────────────────────────────────────────────────────────
-async function saveApiKey() {
-  const btn = document.getElementById('save-key-btn');
-  btn.disabled = true;
-  btn.textContent = '✒ Saving…';
-  setErr('');
-
-  try {
-    if (apiConfig.provider === 'anthropic') {
-      await verifyAnthropic();
-    } else {
-      await verifyOpenAICompat();
-    }
-    updateSidebarKey();
-    hideApiModal();
-    toast('Provider connected ✓');
-  } catch(e) {
-    setErr(e.message);
+function showMErr(m){var e=document.getElementById('merr');e.textContent=m;e.style.display='block';}
+function saveKey(){
+  document.getElementById('merr').style.display='none';
+  if(curPanel==='anthropic'){
+    var k=document.getElementById('antKey').value.trim();
+    if(!k){showMErr('Please enter your Anthropic API key.');return;}
+    if(!k.startsWith('sk-ant-')){showMErr('Anthropic keys start with sk-ant-');return;}
+    API.provider='anthropic';API.key=k;API.model=document.getElementById('antModel').value;API.endpoint='';API.freeTier=document.getElementById('freeTierCb').checked;
+  }else if(curPanel==='openai'){
+    var ep=document.getElementById('oaEp').value.trim();var mod=document.getElementById('oaMod').value.trim();var key=document.getElementById('oaKey').value.trim();
+    if(!ep){showMErr('Please enter an API endpoint.');return;}
+    if(!mod){showMErr('Please enter a model name.');return;}
+    if(!key){showMErr('Please enter your API key.');return;}
+    API.provider='openai';API.key=key;API.model=mod;API.endpoint=ep;API.freeTier=false;
+  }else{
+    var cep=document.getElementById('cuEp').value.trim();var cmod=document.getElementById('cuMod').value.trim();
+    if(!cep){showMErr('Please enter an endpoint URL.');return;}
+    if(!cmod){showMErr('Please enter a model name.');return;}
+    API.provider='custom';API.key=document.getElementById('cuKey').value.trim();API.model=cmod;API.endpoint=cep;API.freeTier=false;
   }
-
-  btn.disabled = false;
-  btn.textContent = '✦ Connect & Enter NovelForge';
+  var dot=document.getElementById('kdot');var lbl=document.getElementById('klabel');
+  dot.style.background='#1a6b6b';
+  lbl.textContent=API.provider==='anthropic'?(API.key.substring(0,12)+'…'+API.key.slice(-4)+' · '+API.model.split('-').slice(0,2).join('-')):(API.model+' · '+API.endpoint.replace(/^https?:\/\//,'').substring(0,24));
+  closeMod();toast('Provider saved ✓');
 }
+function toggleEye(id){var e=document.getElementById(id);if(e)e.type=e.type==='password'?'text':'password';}
 
-async function verifyAnthropic() {
-  const key = document.getElementById('api-key-input').value.trim();
-  if (!key) throw new Error('Please enter your Anthropic API key.');
-  if (!key.startsWith('sk-ant-')) throw new Error('Key must start with "sk-ant-". Copy it fresh from console.anthropic.com/keys.');
+// Toast
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},3000);}
 
-  const model = document.getElementById('anthropic-model').value;
-  const isFree = document.getElementById('free-tier-checkbox').checked;
-
-  // No live API call during verification — the diagnostic tool confirmed the key works.
-  // A live verification call was causing false "credit" errors on Console Free Tier keys.
-  apiConfig.key = key;
-  apiConfig.model = model;
-  apiConfig.endpoint = '';
-  apiConfig.freeTier = isFree;
-}
-
-async function verifyOpenAICompat() {
-  const isCustom = apiConfig.provider === 'custom';
-  const keyEl   = isCustom ? 'custom-key-input'   : 'openai-key-input';
-  const epEl    = isCustom ? 'custom-endpoint'     : 'openai-endpoint';
-  const modelEl = isCustom ? 'custom-model'        : 'openai-model';
-
-  const key      = document.getElementById(keyEl).value.trim();
-  const endpoint = document.getElementById(epEl).value.trim();
-  const model    = document.getElementById(modelEl).value.trim();
-
-  if (!endpoint) throw new Error('Please enter an API endpoint URL.');
-  if (!model)    throw new Error('Please enter a model name.');
-
-  const headers = { 'Content-Type': 'application/json' };
-  if (key) headers['Authorization'] = 'Bearer ' + key;
-
-  let res;
-  try {
-    res = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model,
-        max_tokens: 5,
-        messages: [{ role: 'user', content: 'Hi' }]
-      })
-    });
-  } catch(e) {
-    throw new Error(`Cannot reach endpoint: ${endpoint}. Check the URL and that the server is running.`);
-  }
-
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-
-  apiConfig.key      = key;
-  apiConfig.model    = model;
-  apiConfig.endpoint = endpoint;
-}
-
-function updateSidebarKey() {
-  const dot   = document.getElementById('key-dot');
-  const label = document.getElementById('key-label');
-  dot.style.background = '#1a6b6b';
-
-  if (apiConfig.provider === 'anthropic') {
-    const k = apiConfig.key;
-    label.textContent = (k.substring(0,14) + '…' + k.slice(-4)) + '  ·  ' + apiConfig.model.split('-').slice(0,2).join('-');
-  } else if (apiConfig.provider === 'openai') {
-    label.textContent = apiConfig.model + '  ·  OpenAI-compat';
-  } else {
-    const short = apiConfig.endpoint.replace(/^https?:\/\//, '').substring(0, 28);
-    label.textContent = apiConfig.model + '  ·  ' + short;
+// Stage nav
+function showStage(n){
+  for(var i=0;i<5;i++){
+    var s=document.getElementById('s'+i);if(s)s.classList.toggle('hidden',i!==n);
+    var nav=document.getElementById('sn'+i);if(nav){nav.classList.toggle('active',i===n);nav.classList.toggle('done',i<n);}
+    var ic=document.getElementById('si'+i);if(ic)ic.textContent=i<n?'✓':(i+1);
   }
 }
+function goStage(n){if(n<=S.stage)showStage(n);}
+function advance(n){S.stage=Math.max(S.stage,n);showStage(n);}
 
-function quickFill(endpoint, model) {
-  document.getElementById('openai-endpoint').value = endpoint;
-  document.getElementById('openai-model').value = model;
-  document.getElementById('openai-key-input').focus();
-}
+// Loading / error helpers
+function ld(id,msg,sub){var e=document.getElementById(id);if(!e)return;e.innerHTML='<div class="lcrd"><div class="quill">✒</div><div class="ltxt">'+msg+'</div>'+(sub?'<div class="lsub">'+sub+'</div>':'')+'</div>';}
+function er(id,msg){var e=document.getElementById(id);if(!e)return;e.innerHTML='<div class="errcrd"><strong>Error: </strong>'+msg+'</div>';}
 
-// ─── Rate Limiting (Free Tier: 5 req/min, 4K output tokens/min) ──────────────
-const rateLimiter = {
-  queue: [],
-  lastCall: 0,
-  minGap: 13000,   // 13s between calls = safely under 5/min
-  running: false,
-
-  async schedule(fn) {
-    return new Promise((resolve, reject) => {
-      this.queue.push({ fn, resolve, reject });
-      if (!this.running) this.flush();
-    });
-  },
-
-  async flush() {
-    this.running = true;
-    while (this.queue.length > 0) {
-      const now = Date.now();
-      const wait = Math.max(0, this.minGap - (now - this.lastCall));
-      if (wait > 0) {
-        updateRateBadge(Math.ceil(wait / 1000));
-        await sleep(wait);
-      }
-      updateRateBadge(0);
-      const { fn, resolve, reject } = this.queue.shift();
-      this.lastCall = Date.now();
-      try { resolve(await fn()); } catch(e) { reject(e); }
-    }
-    this.running = false;
-  }
-};
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-function updateRateBadge(secondsLeft) {
-  const el = document.getElementById('rate-badge');
-  if (!el) return;
-  if (secondsLeft > 0) {
-    el.textContent = `⏳ Rate limit: waiting ${secondsLeft}s`;
-    el.style.display = 'inline-block';
-  } else {
-    el.style.display = 'none';
-  }
-}
-
-// ─── Universal callClaude (rate-limited, with free-tier retry) ───────────────
-async function callClaude(systemPrompt, userPrompt, maxTokens = 1500) {
-  const safeTokens = Math.min(maxTokens, 1500);
-
-  if (!apiConfig.key && apiConfig.provider !== 'custom') {
-    showApiModal();
-    throw new Error('No API key set. Click the key icon at the bottom of the sidebar.');
-  }
-
-  const fn = apiConfig.provider === 'anthropic'
-    ? () => callAnthropicAPI(systemPrompt, userPrompt, safeTokens)
-    : () => callOpenAICompatAPI(systemPrompt, userPrompt, safeTokens);
-
-  const schedule = (apiConfig.provider === 'anthropic' && apiConfig.freeTier)
-    ? () => rateLimiter.schedule(fn)
-    : fn;
-
-  return await schedule();
-}
-
-async function callAnthropicAPI(systemPrompt, userPrompt, maxTokens) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiConfig.key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: apiConfig.model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }]
-    })
-  });
-  const data = await res.json();
-  if (data.error) {
-    const msg = data.error.message || '';
-    const type = data.error.type || '';
-
-    // CREDIT / BILLING: Anthropic Console Free Tier keys cannot run generation
-    // calls — the free tier only allows evaluation via the Workbench UI, not API calls.
-    // Direct the user to Groq which is genuinely free for API use.
-    if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('balance') ||
-        msg.toLowerCase().includes('billing') || msg.toLowerCase().includes('payment') ||
-        type === 'billing_error') {
-      showApiModal(true); // open modal on Groq tab
-      throw new Error('BILLING_BLOCKED');
-    }
-
-    if (type === 'authentication_error' || res.status === 401) {
-      showApiModal();
-      throw new Error('API key rejected (401). Please re-enter your key via the settings icon at the bottom of the sidebar.');
-    }
-    if (res.status === 429 || type === 'rate_limit_error') {
-      throw new Error('Rate limit reached — free tier allows 5 requests/minute. Please wait 60 seconds and try again.');
-    }
-    if (res.status === 529 || msg.includes('overload')) {
-      throw new Error('Anthropic servers temporarily overloaded. Please wait a moment and try again.');
-    }
-    throw new Error(msg);
-  }
-  return data.content?.[0]?.text || '';
-}
-
-async function callOpenAICompatAPI(systemPrompt, userPrompt, maxTokens) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (apiConfig.key) headers['Authorization'] = 'Bearer ' + apiConfig.key;
-
-  const res = await fetch(apiConfig.endpoint, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      model: apiConfig.model,
-      max_tokens: maxTokens,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userPrompt }
-      ]
-    })
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-  return data.choices?.[0]?.message?.content || '';
-}
-
-async function callClaudeJSON(systemPrompt, userPrompt, maxTokens = 1500) {
-  const text = await callClaude(systemPrompt, userPrompt, maxTokens);
-  const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
-  try { return JSON.parse(clean); } catch(e) {
-    const match = clean.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-    if (match) return JSON.parse(match[0]);
-    throw e;
-  }
-}
-
-function friendlyError(e) {
-  if (!e || !e.message) return 'Unknown error. Please try again.';
-  if (e.message === 'BILLING_BLOCKED') return null; // modal already shown
-  return e.message;
-}
-
-function showStageError(containerId, e) {
-  if (e.message === 'BILLING_BLOCKED') return; // modal handles it
-  const msg = e.message || 'Unknown error';
-  document.getElementById(containerId).innerHTML =
-    \`<div class="card" style="color:var(--red);padding:16px;border-color:rgba(139,32,32,0.3)">
-      <strong>Error:</strong> \${msg}
-      <div style="margin-top:10px;font-size:12px;color:var(--ink3)">
-        If this keeps happening, click the key icon in the sidebar and switch to Groq (free).
-      </div>
-    </div>\`;
-}
-
-// ─── Stage Navigation ─────────────────────────────────────────────────────────
-function goStage(n) {
-  if (n > state.stage) return;
-  document.querySelectorAll('#content > div').forEach((el,i) => {
-    el.classList.toggle('hidden', i !== n);
-  });
-  document.querySelectorAll('.stage-item').forEach((el,i) => {
-    el.classList.toggle('active', i === n);
-  });
-  state.currentView = n;
-}
-
-function advanceStage(n) {
-  state.stage = Math.max(state.stage, n);
-  document.querySelectorAll('.stage-item').forEach((el, i) => {
-    el.classList.remove('active');
-    if (i < n) { el.classList.add('done'); document.getElementById('icon-'+i).textContent = '✓'; }
-    if (i === n) { el.classList.add('active'); }
-  });
-  goStage(n);
-}
-
-// ─── Toast ────────────────────────────────────────────────────────────────────
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
-}
-
-// ─── Loading ──────────────────────────────────────────────────────────────────
-function showLoading(containerId, message, sub = '') {
-  document.getElementById(containerId).innerHTML = `
-    <div class="loading-card">
-      <div class="quill-anim">✒</div>
-      <div class="loading-text">${message}</div>
-      ${sub ? `<div class="loading-sub">${sub}</div>` : ''}
-    </div>`;
-}
-
-// ─── STAGE 0: Premise Analysis ────────────────────────────────────────────────
-async function analyzePremise() {
-  const premise = document.getElementById('premise-input').value.trim();
-  if (!premise) { toast('Please enter a premise first.'); return; }
-  state.premise = premise;
-
-  const btn = document.getElementById('analyze-btn');
-  btn.disabled = true;
-  btn.textContent = '✒ Analyzing…';
-
-  const result = document.getElementById('premise-result');
-  result.classList.remove('hidden');
-  showLoading('genre-result-text', 'Reading your premise…', 'Detecting genre, tone, and themes');
-
-  const SYSTEM = `You are a master literary agent, bestselling author, and genre expert with 30 years of experience. 
-You have encyclopedic knowledge of every fiction genre, its conventions, tropes, bestselling authors, and reader expectations.
-You speak with warmth, precision, and professional authority.
-Return ONLY valid JSON with no markdown, no preamble.`;
-
-  const USER = `Analyze this story premise and return a JSON object with exactly these fields:
-{
-  "genre": "primary genre (e.g. Thriller, Fantasy, Romance, Literary Fiction, etc.)",
-  "subgenre": "specific subgenre (e.g. Psychological Thriller, Epic Fantasy, etc.)",
-  "tone": "narrative tone (e.g. Dark and atmospheric, Witty and fast-paced, etc.)",
-  "themes": ["array", "of", "3-5", "core", "themes"],
-  "novelTitle": "A compelling working title for this novel",
-  "pov": "recommended POV (e.g. First Person, Third Person Limited, etc.)",
-  "targetWordCount": 90000,
-  "estimatedChapters": 28,
-  "comps": ["2-3 comparable bestselling novels"],
-  "genreAnalysis": "2-3 sentence expert analysis: why this premise fits this genre, its commercial potential, and its unique angle",
-  "authorNotes": "2-3 sentence note from a professional author's perspective on what makes this premise compelling and what to watch for",
-  "hooks": ["3 specific story hooks that will drive reader engagement"],
-  "premise": "${premise.replace(/"/g, '\\"')}"
-}
-
-Premise: "${premise.replace(/"/g, '\\"')}"`;
-
-  try {
-    const data = await callClaudeJSON(SYSTEM, USER, 1200);
-    state.genre = data.genre;
-    state.subgenre = data.subgenre;
-    state.tone = data.tone;
-    state.themes = data.themes || [];
-    state.novelTitle = data.novelTitle || 'Untitled Novel';
-    state.pov = data.pov || 'Third Person Limited';
-    state.wordCountEst = data.targetWordCount || 90000;
-    state.estimatedChapters = data.estimatedChapters || 28;
-
-    document.getElementById('genre-result-text').innerHTML = `
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <span class="badge badge-genre">${data.genre}</span>
-        <span class="badge badge-chapter">${data.subgenre}</span>
-        <span class="badge" style="background:rgba(139,32,32,0.1);color:var(--red);border:1px solid rgba(139,32,32,0.18)">${data.tone}</span>
-      </div>
-      <div style="font-family:var(--font-display);font-size:22px;font-weight:700;font-style:italic;color:var(--ink2);margin-bottom:6px">"${data.novelTitle}"</div>
-      <div style="font-size:12px;font-family:var(--font-mono);color:var(--ink3);margin-bottom:16px">${data.pov} · ~${(data.targetWordCount||90000).toLocaleString()} words · ~${data.estimatedChapters} chapters</div>
-      
-      <div class="critique-section">
-        <h4>Literary Agent's Assessment</h4>
-        <p>${data.genreAnalysis || ''}</p>
-      </div>
-      <div class="critique-section" style="border-color:var(--teal);background:rgba(26,107,107,0.05);margin-top:10px">
-        <h4>Author's Notes</h4>
-        <p>${data.authorNotes || ''}</p>
-      </div>
-      
-      <div class="section-divider" style="margin:16px 0 10px">Story Hooks</div>
-      ${(data.hooks||[]).map(h=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">◆ ${h}</div>`).join('')}
-      
-      <div class="section-divider" style="margin:16px 0 10px">Comparable Titles</div>
-      <div class="tag-row">${(data.comps||[]).map(c=>`<span class="tag">${c}</span>`).join('')}</div>
-      <div class="section-divider" style="margin:16px 0 10px">Core Themes</div>
-      <div class="tag-row">${(data.themes||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
-    `;
-
-    document.getElementById('topbar-title').textContent = data.novelTitle || 'New Novel';
-    document.getElementById('topbar-sub').textContent = `${data.genre} · ${data.subgenre}`;
-    const tb = document.getElementById('topbar-badges');
-    // preserve rate-badge, add genre badge
-    const existing = document.getElementById('rate-badge');
-    tb.innerHTML = `<span class="badge badge-genre">${data.genre}</span>`;
-    if (existing) tb.appendChild(existing);
-    document.getElementById('sidebar-status-text').textContent = `${data.genre} · Stage 1`;
-  } catch(e) {
-    if (e.message !== 'BILLING_BLOCKED')
-      document.getElementById('genre-result-text').innerHTML = `<div style="color:var(--red);font-size:13px">${e.message}</div>`;
-  }
-
-  btn.disabled = false;
-  btn.textContent = '✦ Analyze Premise & Detect Genre';
-}
-
-function approvePremise() {
-  advanceStage(1);
-  document.getElementById('beat-sheet-container').innerHTML = '';
-  buildBeatSheet();
-}
-
-// ─── STAGE 1: Beat Sheet ──────────────────────────────────────────────────────
-const STC_BEATS = [
-  { id: 'opening', name: 'Opening Image', pages: '1', desc: 'A snapshot of the protagonist\'s world before the journey begins.' },
-  { id: 'theme', name: 'Theme Stated', pages: '5', desc: 'The thematic argument of the novel is spoken — often by a secondary character.' },
-  { id: 'setup', name: 'Set-Up', pages: '1–10', desc: 'We meet the hero, their world, and what\'s broken in their life.' },
-  { id: 'catalyst', name: 'Catalyst', pages: '12', desc: 'The inciting incident. Something arrives to upend the hero\'s world.' },
-  { id: 'debate', name: 'Debate', pages: '12–25', desc: 'The hero resists the journey. What happens if they refuse?' },
-  { id: 'break1', name: 'Break into Two', pages: '25', desc: 'The hero commits to the journey. The story world changes.' },
-  { id: 'bsw', name: 'B Story', pages: '30', desc: 'A love story or friendship — the thematic spine of the novel.' },
-  { id: 'fun', name: 'Fun and Games', pages: '30–55', desc: 'The hero explores the new world. The promise of the premise fulfilled.' },
-  { id: 'midpoint', name: 'Midpoint', pages: '50', desc: 'A false victory or defeat. The stakes rise to life-or-death.' },
-  { id: 'badguys', name: 'Bad Guys Close In', pages: '55–75', desc: 'The opposition mounts. The hero\'s team begins to fracture.' },
-  { id: 'allislost', name: 'All Is Lost', pages: '75', desc: 'The worst thing that could happen, does. Whiff of death.' },
-  { id: 'darknight', name: 'Dark Night of the Soul', pages: '75–80', desc: 'The hero\'s lowest point. Before they can rise, they must fall.' },
-  { id: 'break3', name: 'Break into Three', pages: '80', desc: 'The hero finds the solution — A Story meets B Story.' },
-  { id: 'finale', name: 'Finale', pages: '80–99', desc: 'The hero executes the plan, storming the castle, earning the transformation.' },
-  { id: 'finalimage', name: 'Final Image', pages: '100', desc: 'Mirror of the opening image. The world has changed.' },
+// STC beats definition
+var STC=[
+  {id:'opening',name:'Opening Image',pages:'1',desc:'A snapshot of the protagonist\'s world before the journey.'},
+  {id:'theme',name:'Theme Stated',pages:'5',desc:'The thematic argument spoken — often by a secondary character.'},
+  {id:'setup',name:'Set-Up',pages:'1–10',desc:'We meet the hero, their world, and what\'s broken.'},
+  {id:'catalyst',name:'Catalyst',pages:'12',desc:'The inciting incident. Something arrives to upend the hero\'s world.'},
+  {id:'debate',name:'Debate',pages:'12–25',desc:'The hero resists the journey. What if they refuse?'},
+  {id:'break1',name:'Break into Two',pages:'25',desc:'The hero commits. The story world changes.'},
+  {id:'bsw',name:'B Story',pages:'30',desc:'A love story or friendship — the thematic spine.'},
+  {id:'fun',name:'Fun and Games',pages:'30–55',desc:'The hero explores the new world. The promise of the premise.'},
+  {id:'midpoint',name:'Midpoint',pages:'50',desc:'A false victory or defeat. Stakes rise to life-or-death.'},
+  {id:'badguys',name:'Bad Guys Close In',pages:'55–75',desc:'Opposition mounts. The hero\'s team fractures.'},
+  {id:'allislost',name:'All Is Lost',pages:'75',desc:'The worst thing happens. Whiff of death.'},
+  {id:'darknight',name:'Dark Night of the Soul',pages:'75–80',desc:'The hero\'s lowest point.'},
+  {id:'break3',name:'Break into Three',pages:'80',desc:'The hero finds the solution — A Story meets B Story.'},
+  {id:'finale',name:'Finale',pages:'80–99',desc:'The hero storms the castle and earns the transformation.'},
+  {id:'finalimage',name:'Final Image',pages:'100',desc:'Mirror of the opening image. The world has changed.'}
 ];
 
-async function buildBeatSheet() {
-  showLoading('beat-sheet-container', 'Crafting your Save The Cat beat sheet…', `Structuring ${state.genre} narrative architecture`);
+// Stage 0
+async function analyzePremise(){
+  var prem=document.getElementById('premise').value.trim();
+  if(!prem){toast('Please enter a premise first.');return;}
+  if(!API.key){openMod();return;}
+  S.premise=prem;
+  var btn=document.getElementById('bAnalyze');
+  btn.disabled=true;btn.textContent='✒ Analyzing…';
+  document.getElementById('premResult').classList.remove('hidden');
+  ld('genreResult','Reading your premise…','Detecting genre, tone, and themes');
+  var SYS='You are a master literary agent and genre expert. Return ONLY valid JSON, no markdown, no extra text.';
+  var USR='Analyze this premise and return JSON with: {"genre":"...","subgenre":"...","tone":"...","themes":["..."],"novelTitle":"...","pov":"...","targetWordCount":85000,"estimatedChapters":26,"comps":["...","..."],"genreAnalysis":"2-3 sentences","authorNotes":"2-3 sentences","hooks":["...","...","..."]}\n\nPremise: '+prem.substring(0,500);
+  try{
+    var d=await askJ(SYS,USR,1200);
+    S.genre=d.genre||'Fiction';S.subgenre=d.subgenre||'';S.tone=d.tone||'';S.themes=d.themes||[];S.novelTitle=d.novelTitle||'Untitled Novel';S.pov=d.pov||'Third Person Limited';S.wordCountEst=d.targetWordCount||85000;
+    var h='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px"><span class="badge bg">'+S.genre+'</span><span class="badge bc">'+S.subgenre+'</span></div>'
+      +'<div style="font-family:var(--fd);font-size:22px;font-weight:700;font-style:italic;color:var(--ink2);margin-bottom:6px">"'+S.novelTitle+'"</div>'
+      +'<div style="font-size:12px;font-family:var(--fm);color:var(--ink3);margin-bottom:16px">'+S.pov+' · ~'+(S.wordCountEst/1000|0)+'k words · ~'+(d.estimatedChapters||26)+' chapters</div>';
+    if(d.genreAnalysis)h+='<div class="crit"><h4>Literary Agent\'s Assessment</h4><p>'+d.genreAnalysis+'</p></div>';
+    if(d.authorNotes)h+='<div class="crit t" style="margin-top:10px"><h4>Author\'s Notes</h4><p>'+d.authorNotes+'</p></div>';
+    if(d.hooks&&d.hooks.length){h+='<div class="divider" style="margin:16px 0 10px">Story Hooks</div>';d.hooks.forEach(function(x){h+='<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">◆ '+x+'</div>';});}
+    if(d.comps&&d.comps.length){h+='<div class="divider" style="margin:16px 0 10px">Comparable Titles</div><div class="tagrow">';d.comps.forEach(function(x){h+='<span class="tag">'+x+'</span>';});h+='</div>';}
+    if(S.themes.length){h+='<div class="divider" style="margin:16px 0 10px">Core Themes</div><div class="tagrow">';S.themes.forEach(function(x){h+='<span class="tag">'+x+'</span>';});h+='</div>';}
+    document.getElementById('genreResult').innerHTML=h;
+    document.getElementById('ttitle').textContent=S.novelTitle;
+    document.getElementById('tsub').textContent=S.genre+' · '+S.subgenre;
+    document.getElementById('gbadge').innerHTML='<span class="badge bg">'+S.genre+'</span>';
+    document.getElementById('novstat').textContent=S.genre+' · Stage 1';
+  }catch(e){er('genreResult',e.message);}
+  btn.disabled=false;btn.textContent='✦ Analyze Premise & Detect Genre';
+}
+function approvePremise(){advance(1);buildBeats();}
 
-  const SYSTEM = `You are a master story structure consultant expert in Save The Cat methodology.
-Return ONLY valid JSON, no markdown, no preamble.`;
+// Stage 1
+async function buildBeats(){
+  ld('beatCont','Crafting your beat sheet…','Building Act 1 & 2A');
+  var SYS='You are a Save The Cat story structure expert. Return ONLY valid JSON, no markdown.';
+  try{
+    var UA='Create Save The Cat beats for Act 1 and Act 2A.\nGenre: '+S.genre+' ('+S.subgenre+')\nPremise: '+S.premise.substring(0,400)+'\nTitle: '+S.novelTitle+'\nReturn JSON: {"beats":[{"id":"opening","content":"2-3 concrete sentences"},{"id":"theme","content":"..."},{"id":"setup","content":"..."},{"id":"catalyst","content":"..."},{"id":"debate","content":"..."},{"id":"break1","content":"..."},{"id":"bsw","content":"..."},{"id":"fun","content":"..."},{"id":"midpoint","content":"..."}]}';
+    var dA=await askJ(SYS,UA,1200);
+    ld('beatCont','Building Act 2B &amp; 3 beats…','Second batch');
+    var UB='Create Save The Cat beats for Act 2B and Act 3.\nGenre: '+S.genre+'\nPremise: '+S.premise.substring(0,400)+'\nTitle: '+S.novelTitle+'\nReturn JSON: {"beats":[{"id":"badguys","content":"2-3 concrete sentences"},{"id":"allislost","content":"..."},{"id":"darknight","content":"..."},{"id":"break3","content":"..."},{"id":"finale","content":"..."},{"id":"finalimage","content":"..."}]}';
+    var dB=await askJ(SYS,UB,1000);
+    var map={};(dA.beats||[]).concat(dB.beats||[]).forEach(function(b){map[b.id]=b.content;});
+    S.beats=STC.map(function(b){return Object.assign({},b,{content:map[b.id]||'[Click to add: '+b.name+']'});});
+    renderBeats();
+    document.getElementById('beatApproveWrap').classList.remove('hidden');
+    document.getElementById('novstat').textContent=S.genre+' · Beat Sheet Ready';
+  }catch(e){er('beatCont',e.message);}
+}
+function renderBeats(){
+  var acts=[{l:'Act One',ids:['opening','theme','setup','catalyst','debate','break1']},{l:'Act Two — A',ids:['bsw','fun','midpoint']},{l:'Act Two — B',ids:['badguys','allislost','darknight','break3']},{l:'Act Three',ids:['finale','finalimage']}];
+  var h='';
+  acts.forEach(function(act){
+    h+='<div class="divider">'+act.l+'</div>';
+    act.ids.forEach(function(id){
+      var b=S.beats.find(function(x){return x.id===id;});if(!b)return;
+      h+='<div class="bitem"><div class="bhdr" id="bh'+b.id+'"><span class="bnum">p.'+b.pages+'</span><span class="bname">'+b.name+'</span><span class="bprev">'+b.content.substring(0,55)+'…</span><span style="color:var(--ink3);font-size:12px;margin-left:8px">▾</span></div><div class="bbody" id="bb'+b.id+'"><div class="bdesc">'+b.desc+'</div><textarea rows="4" id="bt'+b.id+'">'+b.content+'</textarea></div></div>';
+    });
+  });
+  document.getElementById('beatCont').innerHTML=h;
+  STC.forEach(function(b){
+    var hdr=document.getElementById('bh'+b.id);
+    if(hdr)hdr.addEventListener('click',function(){var body=document.getElementById('bb'+b.id);if(body)body.classList.toggle('open');});
+    var ta=document.getElementById('bt'+b.id);
+    if(ta)ta.addEventListener('change',function(){var beat=S.beats.find(function(x){return x.id===b.id;});if(beat)beat.content=ta.value;});
+  });
+}
+function approveBeats(){advance(2);buildChPlan();}
 
-  // Split into 2 calls: Act 1+2A beats, then Act 2B+3 beats
-  const USER_A = `Create Save The Cat beats for Act 1 and Act 2A of this novel:
-Genre: ${state.genre} (${state.subgenre}), Tone: ${state.tone}
-Premise: ${state.premise.substring(0,400)}
-Title: ${state.novelTitle}, POV: ${state.pov}
+// Stage 2
+async function buildChPlan(){
+  ld('chPlanCont','Mapping your chapters…','Batch 1 of 2 — Act 1 through midpoint');
+  var SYS='You are a professional novelist and developmental editor. Return ONLY valid JSON, no markdown.';
+  var bs=S.beats.map(function(b){return b.name+': '+b.content.substring(0,80);}).join('\n');
+  try{
+    var U1='For this '+S.genre+' novel "'+S.novelTitle+'", create chapters 1–14 (Act 1 through midpoint).\nBeats:\n'+bs.substring(0,700)+'\nPremise: '+S.premise.substring(0,300)+'\nPOV: '+S.pov+'\nReturn JSON: {"chapters":[{"number":1,"title":"Title","synopsis":"2-3 sentences.","pov_character":"name","setting":"place","beat":"STC beat","wordCount":2500}]}\nWrite exactly 14 chapters.';
+    var d1=await askJ(SYS,U1,1300);
+    ld('chPlanCont','Batch 2 of 2 — Act 2B through finale…','Almost done');
+    var bp='Midpoint: '+(S.beats.find(function(b){return b.id==='midpoint';})||{content:''}).content+'\nAll Is Lost: '+(S.beats.find(function(b){return b.id==='allislost';})||{content:''}).content+'\nFinale: '+(S.beats.find(function(b){return b.id==='finale';})||{content:''}).content;
+    var U2='For this '+S.genre+' novel "'+S.novelTitle+'", create chapters 15–26 (Act 2B through finale).\nKey beats:\n'+bp+'\nPremise: '+S.premise.substring(0,200)+'\nPOV: '+S.pov+'\nReturn JSON: {"chapters":[{"number":15,"title":"Title","synopsis":"2-3 sentences.","pov_character":"name","setting":"place","beat":"STC beat","wordCount":2500}]}\nWrite exactly 12 chapters (15–26).';
+    var d2=await askJ(SYS,U2,1300);
+    var all=(d1.chapters||[]).concat(d2.chapters||[]);
+    S.chapters=all.map(function(ch){return Object.assign({},ch,{status:'pending',content:'',score:0,revisions:0,critique:'',issues:[],strengths:[],improvePriority:'',approved:false});});
+    var tw=S.chapters.reduce(function(s,c){return s+(c.wordCount||2500);},0);
+    document.getElementById('stCh').textContent=S.chapters.length;
+    document.getElementById('stWc').textContent=Math.round(tw/1000)+'k';
+    document.getElementById('stPov').textContent=S.pov.split(' ')[0];
+    document.getElementById('chStats').classList.remove('hidden');
+    renderChPlan();
+    document.getElementById('chPlanApprove').classList.remove('hidden');
+    document.getElementById('novstat').textContent=S.genre+' · '+S.chapters.length+' Chapters Planned';
+  }catch(e){er('chPlanCont',e.message);}
+}
+function renderChPlan(){
+  var h='';
+  S.chapters.forEach(function(ch,i){
+    h+='<div class="bitem"><div class="bhdr" id="cph'+i+'"><span class="bnum">Ch.'+ch.number+'</span><span class="bname">'+ch.title+'</span>'+(ch.beat?'<span class="badge bc" style="font-size:10px;padding:2px 7px">'+ch.beat+'</span>':'')+'<span style="font-family:var(--fm);font-size:11px;color:var(--ink3);margin-left:6px">'+(ch.wordCount||2500).toLocaleString()+'w</span><span style="color:var(--ink3);font-size:12px;margin-left:8px">▾</span></div><div class="bbody" id="cpb'+i+'"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;font-size:12px;font-family:var(--fm);color:var(--ink3)"><span>POV: '+(ch.pov_character||S.pov)+'</span><span>Setting: '+(ch.setting||'—')+'</span></div><textarea rows="4" id="cps'+i+'">'+ch.synopsis+'</textarea></div></div>';
+  });
+  document.getElementById('chPlanCont').innerHTML=h;
+  S.chapters.forEach(function(ch,i){
+    var hdr=document.getElementById('cph'+i);if(hdr)hdr.addEventListener('click',function(){var b=document.getElementById('cpb'+i);if(b)b.classList.toggle('open');});
+    var ta=document.getElementById('cps'+i);if(ta)ta.addEventListener('change',function(){S.chapters[i].synopsis=ta.value;});
+  });
+}
+function approveChPlan(){advance(3);renderChList();}
 
-Return JSON with "beats" array. Each beat: { "id": "beat_id", "content": "2-3 concrete sentences naming characters and events." }
-Use these IDs: opening, theme, setup, catalyst, debate, break1, bsw, fun, midpoint`;
-
-  const USER_B = `Create Save The Cat beats for Act 2B and Act 3 of this novel:
-Genre: ${state.genre} (${state.subgenre}), Tone: ${state.tone}
-Premise: ${state.premise.substring(0,400)}
-Title: ${state.novelTitle}, POV: ${state.pov}
-
-Return JSON with "beats" array. Each beat: { "id": "beat_id", "content": "2-3 concrete sentences naming characters and events." }
-Use these IDs: badguys, allislost, darknight, break3, finale, finalimage`;
-
-  try {
-    showLoading('beat-sheet-container', 'Writing Act 1 & 2A beats…', 'Batch 1 of 2');
-    const dataA = await callClaudeJSON(SYSTEM, USER_A, 1200);
-
-    showLoading('beat-sheet-container', 'Writing Act 2B & 3 beats…', 'Batch 2 of 2');
-    const dataB = await callClaudeJSON(SYSTEM, USER_B, 1000);
-
-    const beatMap = {};
-    [...(dataA.beats||[]), ...(dataB.beats||[])].forEach(b => { beatMap[b.id] = b.content; });
-
-    state.beats = STC_BEATS.map(b => ({
-      ...b,
-      content: beatMap[b.id] || `[Click to add content for: ${b.name}]`
-    }));
-
-    renderBeatSheet();
-    document.getElementById('beat-approve-btn').classList.remove('hidden');
-    document.getElementById('sidebar-status-text').textContent = `${state.genre} · Beat Sheet Ready`;
-  } catch(e) {
-    showStageError('beat-sheet-container', e);
+// Stage 3
+function renderChList(){
+  var h='';
+  S.chapters.forEach(function(ch,i){
+    var dc=ch.approved?'da':ch.score>=9?'dd':ch.status==='writing'?'dw':'dp';
+    var st=ch.approved?'✓ '+ch.score+'/10':ch.status==='done'?(ch.score||'—')+'/10':ch.status==='writing'?'Writing…':'Pending';
+    h+='<div class="crow" id="cr'+i+'"><div class="dot '+dc+'"></div><div class="cnum">Ch.'+ch.number+'</div><div class="ctit">'+ch.title+'</div><div class="cstat">'+st+'</div></div>';
+  });
+  document.getElementById('chList').innerHTML=h;
+  S.chapters.forEach(function(ch,i){var r=document.getElementById('cr'+i);if(r)r.addEventListener('click',function(){selectCh(i);});});
+}
+function selectCh(i){
+  S.currentChapter=i;
+  S.chapters.forEach(function(_,j){var r=document.getElementById('cr'+j);if(r)r.classList.toggle('active',j===i);});
+  renderChEditor(i);
+}
+function wc(t){return t.trim().split(/\s+/).filter(Boolean).length;}
+function renderChEditor(i){
+  var ch=S.chapters[i];var sc=ch.score;var col=sc>=9?'var(--teal)':sc>=7?'var(--gold)':'var(--red)';
+  var ed=document.getElementById('chEditor');
+  var h='<div style="font-family:var(--fd);font-size:17px;font-weight:700;color:var(--ink2);margin-bottom:3px">Chapter '+ch.number+': '+ch.title+'</div>'
+    +'<div style="font-size:12px;font-family:var(--fm);color:var(--ink3);margin-bottom:14px">'+(ch.pov_character||S.pov)+' · '+(ch.setting||'')+'</div>'
+    +'<div class="card" style="padding:14px 16px;margin-bottom:14px"><div style="font-size:12px;font-family:var(--fm);text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:6px">Synopsis</div><div style="font-size:14px;color:var(--ink2);line-height:1.65;font-style:italic">'+ch.synopsis+'</div></div>';
+  if(ch.status==='pending')h+='<div class="arow" style="margin-bottom:14px"><button class="btn btn-p" id="bWrCh">✒ Write This Chapter</button></div>';
+  if(ch.status==='writing')h+='<div class="lcrd"><div class="quill">✒</div><div class="ltxt" id="wstat">Writing…</div><div class="lsub">Please wait — respecting rate limits</div></div>';
+  if(ch.content){
+    h+='<div class="tabbar"><button class="tbtn active" id="tProse">Prose</button><button class="tbtn" id="tCrit">Critique &amp; Score</button></div>'
+      +'<div id="pProse"><div class="prose" contenteditable="true" id="pCont">'+ch.content+'</div><div style="font-family:var(--fm);font-size:11px;color:var(--ink3);margin-top:6px">'+wc(ch.content).toLocaleString()+' words</div></div>'
+      +'<div id="pCrit" class="hidden"><div style="display:flex;align-items:center;gap:16px;margin-bottom:14px"><div><div class="score '+(sc>=9?'hi':'')+'" style="color:'+col+'">'+( sc||'—')+'</div><div style="font-family:var(--fm);font-size:10px;color:var(--ink3);text-transform:uppercase">/10 vs bestsellers</div></div><div style="flex:1"><div class="rbar"><div class="rfill" style="width:'+(sc*10)+'%"></div></div><div style="font-size:11px;color:var(--ink3);margin-top:3px">'+(ch.revisions||0)+' revision(s)</div></div></div>'+(ch.critique?'<div class="crit"><h4>Editor\'s Critique</h4><p>'+ch.critique+'</p></div>':'')+'</div>';
+    h+='<div class="arow" style="margin-top:14px">';
+    if(!ch.approved)h+='<button class="btn btn-g btn-sm" id="bRateCh">★ Rate vs Bestsellers</button>';
+    if(sc>0&&sc<9&&!ch.approved)h+='<button class="btn btn-p btn-sm" id="bRevCh">✒ Revise to 9/10</button>';
+    if(sc>=9&&!ch.approved)h+='<button class="btn btn-a btn-sm" id="bAppCh">✓ Approve Chapter</button>';
+    if(ch.approved)h+='<div style="color:var(--teal);font-family:var(--fm);font-size:12px;padding:8px 0">✓ Approved ('+sc+'/10)</div>';
+    h+='<button class="btn btn-o btn-sm" id="bRewCh">↺ Rewrite</button></div>';
   }
+  ed.innerHTML=h;
+  var wb=document.getElementById('bWrCh');if(wb)wb.addEventListener('click',function(){writeCh(i);});
+  var tp=document.getElementById('tProse');var tc=document.getElementById('tCrit');
+  if(tp)tp.addEventListener('click',function(){tp.classList.add('active');tc.classList.remove('active');document.getElementById('pProse').classList.remove('hidden');document.getElementById('pCrit').classList.add('hidden');});
+  if(tc)tc.addEventListener('click',function(){tc.classList.add('active');tp.classList.remove('active');document.getElementById('pCrit').classList.remove('hidden');document.getElementById('pProse').classList.add('hidden');});
+  var pc=document.getElementById('pCont');if(pc)pc.addEventListener('blur',function(){S.chapters[i].content=pc.innerText;});
+  var rb2=document.getElementById('bRateCh');if(rb2)rb2.addEventListener('click',function(){rateCh(i);});
+  var rv=document.getElementById('bRevCh');if(rv)rv.addEventListener('click',function(){revCh(i);});
+  var ap=document.getElementById('bAppCh');if(ap)ap.addEventListener('click',function(){approveCh(i);});
+  var rw=document.getElementById('bRewCh');if(rw)rw.addEventListener('click',function(){S.chapters[i].content='';S.chapters[i].status='pending';S.chapters[i].score=0;S.chapters[i].critique='';renderChEditor(i);});
+}
+async function writeCh(i){
+  var ch=S.chapters[i];ch.status='writing';renderChEditor(i);renderChList();
+  var prev=S.chapters.slice(Math.max(0,i-3),i).filter(function(c){return c.content;}).map(function(c){return 'Ch.'+c.number+' "'+c.title+'": '+c.synopsis;}).join('\n');
+  var SYS='You are a '+S.genre+' novelist writing bestseller-quality prose. Voice: '+S.tone+'. POV: '+S.pov+'. Write vivid scenes, authentic dialogue, character depth. PROSE ONLY — no headers, no meta-commentary.';
+  try{
+    var U1='Write the OPENING HALF (~700 words) of Chapter '+ch.number+': "'+ch.title+'" from "'+S.novelTitle+'".\nSynopsis: '+ch.synopsis+'\nSetting: '+(ch.setting||'as appropriate')+'\n'+(prev?'Recent context:\n'+prev:'')+'\nStart with a compelling hook. End mid-scene. Prose only.';
+    var p1=await ask(SYS,U1,1200);
+    var ws=document.getElementById('wstat');if(ws)ws.textContent='Writing Part 2 of 2…';
+    var U2='Write the CLOSING HALF (~700 words) of Chapter '+ch.number+': "'+ch.title+'" from "'+S.novelTitle+'".\nSynopsis: '+ch.synopsis+'\nContinue from:\n---\n'+p1.slice(-500)+'\n---\nResolve the chapter. End with a hook. Prose only.';
+    var p2=await ask(SYS,U2,1200);
+    ch.content=p1+'\n\n'+p2;ch.status='done';
+    renderChList();renderChEditor(i);toast('Chapter '+ch.number+' written! ('+wc(ch.content).toLocaleString()+' words)');
+  }catch(e){ch.status='pending';renderChList();renderChEditor(i);toast('Error: '+e.message);}
+}
+async function rateCh(i){
+  var ch=S.chapters[i];var btn=document.getElementById('bRateCh');if(btn){btn.disabled=true;btn.textContent='★ Rating…';}
+  var SYS='You are a rigorous literary critic expert in '+S.genre+'. Return ONLY valid JSON, no markdown.';
+  var USR='Rate Chapter '+ch.number+' "'+ch.title+'" from "'+S.novelTitle+'" against '+S.genre+' bestsellers.\nSynopsis: '+ch.synopsis+'\nExcerpt:\n'+ch.content.substring(0,1200)+'\nReturn JSON: {"score":7.5,"critique":"2-3 sentences","specificIssues":["i1","i2"],"strengths":["s1"],"improvementPriority":"main fix"}';
+  try{
+    var d=await askJ(SYS,USR,800);
+    ch.score=d.score||7;ch.critique=d.critique||'';ch.issues=d.specificIssues||[];ch.strengths=d.strengths||[];ch.improvePriority=d.improvementPriority||'';
+    renderChList();renderChEditor(i);
+    var tc=document.getElementById('tCrit');if(tc)tc.click();
+    toast('Chapter '+ch.number+' scored: '+ch.score+'/10');
+  }catch(e){toast('Rating error: '+e.message);if(btn){btn.disabled=false;btn.textContent='★ Rate vs Bestsellers';}}
+}
+async function revCh(i){
+  var ch=S.chapters[i];ch.status='writing';renderChEditor(i);
+  var half=Math.floor(ch.content.length/2);
+  var SYS='You are a master '+S.genre+' author doing targeted revision to reach 9/10+. POV: '+S.pov+'. Prose only.';
+  try{
+    var R1='Revise the FIRST HALF to fix: "'+(ch.improvePriority||'overall prose quality')+'"\nIssues: '+(ch.issues||[]).join('; ')+'\nPreserve: '+(ch.strengths||[]).join('; ')+'\nOriginal:\n'+ch.content.substring(0,half).substring(0,1200)+'\nRewrite at same length. Prose only.';
+    var r1=await ask(SYS,R1,1200);
+    var ws=document.getElementById('wstat');if(ws)ws.textContent='Revising Part 2 of 2…';
+    var R2='Revise the SECOND HALF. First half ends:\n---\n'+r1.slice(-400)+'\n---\nOriginal:\n'+ch.content.substring(half).substring(0,1200)+'\nContinue naturally. End with a strong hook. Prose only.';
+    var r2=await ask(SYS,R2,1200);
+    ch.content=r1+'\n\n'+r2;ch.revisions=(ch.revisions||0)+1;ch.status='done';ch.score=0;ch.critique='';
+    renderChList();renderChEditor(i);toast('Chapter '+ch.number+' revised. Rate again to check score.');
+  }catch(e){ch.status='done';renderChEditor(i);toast('Error: '+e.message);}
+}
+function approveCh(i){
+  S.chapters[i].approved=true;renderChList();renderChEditor(i);toast('Chapter '+(i+1)+' approved!');
+  if(S.chapters.every(function(c){return c.approved;})){setTimeout(function(){toast('All chapters approved! Running final assessment…');advance(4);buildFinal();},1000);}
+}
+async function writeAll(){
+  var btn=document.getElementById('bWriteAll');if(btn){btn.disabled=true;btn.textContent='Writing…';}
+  for(var i=0;i<S.chapters.length;i++){
+    if(S.chapters[i].status==='pending'){selectCh(i);await writeCh(i);await rateCh(i);if(S.chapters[i].score<9){await revCh(i);await rateCh(i);}}
+  }
+  if(btn){btn.disabled=false;btn.textContent='✦ Write All Chapters';}
 }
 
-function renderBeatSheet() {
-  const acts = [
-    { label: 'Act One', beats: ['opening','theme','setup','catalyst','debate','break1'] },
-    { label: 'Act Two (A)', beats: ['bsw','fun','midpoint'] },
-    { label: 'Act Two (B)', beats: ['badguys','allislost','darknight','break3'] },
-    { label: 'Act Three', beats: ['finale','finalimage'] },
-  ];
+// Stage 4
+async function buildFinal(){
+  ld('finalCont','Evaluating your complete novel…','Comparing against '+S.genre+' bestsellers');
+  var avg=(S.chapters.reduce(function(s,c){return s+(c.score||0);},0)/S.chapters.length).toFixed(1);
+  var scores=S.chapters.map(function(c){return 'Ch.'+c.number+' '+c.score+'/10';}).join(' | ').substring(0,500);
+  var samps=[0,Math.floor(S.chapters.length/2),S.chapters.length-1].map(function(j){var c=S.chapters[j];return c?'Ch.'+c.number+': '+c.synopsis.substring(0,100):'';}).join('\n');
+  var SYS='You are a senior acquisitions editor specializing in '+S.genre+'. Return ONLY valid JSON, no markdown.';
+  var USR='Evaluate "'+S.novelTitle+'" ('+S.genre+') against today\'s bestsellers.\nPremise: '+S.premise.substring(0,300)+'\nChapters: '+S.chapters.length+' | Avg: '+avg+'/10\nScores: '+scores+'\nSamples:\n'+samps+'\nReturn JSON: {"overallScore":8.5,"commercialVerdict":"one sentence","overallCritique":"3-4 sentences","topStrengths":["s1","s2","s3"],"topWeaknesses":["w1","w2"],"comparisonNotes":"comparison","publishingRecommendation":"recommendation","finalEnhancements":["e1","e2","e3"]}';
+  try{
+    var d=await askJ(SYS,USR,1200);
+    var sc=d.overallScore||8;var col=sc>=9?'var(--teal)':sc>=7?'var(--gold)':'var(--red)';
+    var h='<div class="card"><div style="display:flex;align-items:center;gap:24px;margin-bottom:20px;flex-wrap:wrap"><div style="text-align:center"><div class="score '+(sc>=9?'hi':'')+'" style="color:'+col+';font-size:52px">'+sc+'</div><div style="font-family:var(--fm);font-size:10px;color:var(--ink3);text-transform:uppercase">/10 OVERALL</div></div><div style="flex:1"><div style="font-family:var(--fd);font-size:20px;font-weight:700;font-style:italic;color:var(--ink2);margin-bottom:4px">"'+S.novelTitle+'"</div><span class="badge bg">'+S.genre+'</span><div class="rbar" style="height:12px;margin-top:8px"><div class="rfill" style="width:'+(sc*10)+'%"></div></div><div style="font-size:13px;color:var(--ink2);margin-top:8px;font-style:italic">'+(d.commercialVerdict||'')+'</div></div></div>';
+    h+='<div class="crit"><h4>Complete Novel Assessment</h4><p>'+(d.overallCritique||'')+'</p></div>';
+    if(d.topStrengths){h+='<div class="divider">Top Strengths</div>';d.topStrengths.forEach(function(s){h+='<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">✦ '+s+'</div>';});}
+    if(d.topWeaknesses){h+='<div class="divider">Areas for Enhancement</div>';d.topWeaknesses.forEach(function(w){h+='<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">◆ '+w+'</div>';});}
+    if(d.comparisonNotes)h+='<div class="crit t" style="margin-top:14px"><h4>Comparison to Bestsellers</h4><p>'+d.comparisonNotes+'</p></div>';
+    if(d.publishingRecommendation)h+='<div class="divider">Publishing Recommendation</div><div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--ink2);padding:10px 0">'+d.publishingRecommendation+'</div>';
+    if(sc<9&&d.finalEnhancements){h+='<div class="divider">Final Enhancements Needed</div>';d.finalEnhancements.forEach(function(e,j){h+='<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">'+(j+1)+'. '+e+'</div>';});h+='<div class="arow" style="margin-top:16px"><button class="btn btn-p" id="bReeval">↺ Re-evaluate After Revisions</button></div>';}
+    else if(sc>=9)h+='<div style="text-align:center;padding:20px 0"><div style="font-family:var(--fd);font-size:18px;font-style:italic;color:var(--teal)">✦ Your novel meets bestseller standards. ✦</div><div style="font-size:13px;color:var(--ink3);margin-top:6px">Congratulations — "'+S.novelTitle+'" is ready for the world.</div></div>';
+    h+='<div class="divider">Chapter Scores</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;margin-top:4px">';
+    S.chapters.forEach(function(c){var cc=c.score>=9?'var(--teal)':c.score>=7?'var(--gold)':'var(--red)';h+='<div style="background:var(--parch);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><div style="font-size:11px;font-family:var(--fm);color:var(--ink3)">Ch.'+c.number+'</div><div style="font-family:var(--fd);font-size:12px;font-weight:600;color:var(--ink2);margin:2px 0">'+c.title+'</div><div style="font-size:20px;font-family:var(--fd);font-weight:700;color:'+cc+';font-style:italic">'+(c.score||'—')+'/10</div></div>';});
+    h+='</div></div>';
+    document.getElementById('finalCont').innerHTML=h;
+    document.getElementById('novstat').textContent=S.genre+' · '+sc+'/10 Overall';
+    var rb3=document.getElementById('bReeval');if(rb3)rb3.addEventListener('click',buildFinal);
+  }catch(e){er('finalCont',e.message);}
+}
 
-  let html = '';
-  acts.forEach(act => {
-    html += `<div class="section-divider">${act.label}</div>`;
-    act.beats.forEach(id => {
-      const beat = state.beats.find(b => b.id === id);
-      if (!beat) return;
-      html += `
-        <div class="beat-item" id="beat-${beat.id}">
-          <div class="beat-header" onclick="toggleBeat('${beat.id}')">
-            <span class="beat-num">p.${beat.pages}</span>
-            <span class="beat-name">${beat.name}</span>
-            <span class="beat-page" style="font-size:11px;color:var(--ink3);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-left:8px">${beat.content.substring(0,60)}…</span>
-            <span style="color:var(--ink3);font-size:12px">▾</span>
-          </div>
-          <div class="beat-body" id="body-${beat.id}">
-            <div style="font-size:12px;color:var(--ink3);margin-bottom:8px;font-style:italic">${beat.desc}</div>
-            <textarea rows="4" onchange="updateBeat('${beat.id}', this.value)">${beat.content}</textarea>
-          </div>
-        </div>`;
+// =============================================================================
+// window.onload — ALL event wiring. Runs after entire page + script is parsed.
+// =============================================================================
+window.onload=function(){
+
+  // Modal: provider tabs
+  document.getElementById('pt-anthropic').addEventListener('click',function(){swPanel('anthropic');});
+  document.getElementById('pt-openai').addEventListener('click',function(){swPanel('openai');});
+  document.getElementById('pt-custom').addEventListener('click',function(){swPanel('custom');});
+
+  // Modal: Groq shortcut
+  document.getElementById('bSwitchGroq').addEventListener('click',function(){
+    swPanel('openai');
+    document.getElementById('oaEp').value='https://api.groq.com/openai/v1/chat/completions';
+    document.getElementById('oaMod').value='llama-3.3-70b-versatile';
+    document.getElementById('oaKey').focus();
+  });
+
+  // Modal: preset buttons
+  document.querySelectorAll('.pbtn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.getElementById('oaEp').value=btn.getAttribute('data-ep');
+      document.getElementById('oaMod').value=btn.getAttribute('data-m');
+      document.getElementById('oaKey').focus();
     });
   });
 
-  document.getElementById('beat-sheet-container').innerHTML = html;
-}
+  // Modal: eye toggles
+  document.getElementById('eyeAnt').addEventListener('click',function(){toggleEye('antKey');});
+  document.getElementById('eyeOa').addEventListener('click',function(){toggleEye('oaKey');});
+  document.getElementById('eyeCu').addEventListener('click',function(){toggleEye('cuKey');});
 
-function toggleBeat(id) {
-  const body = document.getElementById('body-' + id);
-  body.classList.toggle('open');
-}
+  // Modal: save
+  document.getElementById('bSaveKey').addEventListener('click',saveKey);
 
-function updateBeat(id, value) {
-  const beat = state.beats.find(b => b.id === id);
-  if (beat) beat.content = value;
-}
+  // Modal: Enter key in inputs
+  ['antKey','oaKey','cuKey'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')saveKey();});
+  });
 
-async function approveBeatSheet() {
-  advanceStage(2);
-  document.getElementById('chapter-plan-container').innerHTML = '';
-  buildChapterPlan();
-}
+  // Modal: click backdrop to close
+  document.getElementById('mov').addEventListener('click',function(e){if(e.target===this&&API.key)closeMod();});
 
-// ─── STAGE 2: Chapter Plan ────────────────────────────────────────────────────
-async function buildChapterPlan() {
-  showLoading('chapter-plan-container', 'Mapping your chapters…', 'Calculating structure (free tier: building in two batches)');
+  // Sidebar: key indicator
+  document.getElementById('keyind').addEventListener('click',function(){openMod(false);});
 
-  const beatSummary = state.beats.map(b => `${b.name}: ${b.content}`).join('\n');
-
-  const SYSTEM = `You are a professional novelist and developmental editor.
-Return ONLY valid JSON. No markdown, no preamble.`;
-
-  // Batch 1: First half of chapters (Act 1 + Act 2A)
-  const USER1 = `For this ${state.genre} novel "${state.novelTitle}", create chapters 1-14 (Act 1 through Act 2A midpoint).
-
-Beat Sheet summary:
-${beatSummary.substring(0, 800)}
-Premise: ${state.premise.substring(0, 300)}
-POV: ${state.pov}
-
-Return JSON: { "chapters": [ { "number":1, "title":"Title", "synopsis":"2-3 sentences of what happens.", "pov_character":"name", "setting":"place", "beat":"STC beat", "wordCount":2500 } ] }
-Write exactly 14 chapters. Keep synopses to 2-3 sentences each.`;
-
-  // Batch 2: Second half (Act 2B + Act 3)
-  const USER2 = `For this ${state.genre} novel "${state.novelTitle}", create chapters 15-26 (Act 2B through Act 3 finale).
-
-Beat Sheet summary (Act 2B onwards):
-Midpoint: ${state.beats.find(b=>b.id==='midpoint')?.content || ''}
-All Is Lost: ${state.beats.find(b=>b.id==='allislost')?.content || ''}
-Dark Night: ${state.beats.find(b=>b.id==='darknight')?.content || ''}
-Break Into Three: ${state.beats.find(b=>b.id==='break3')?.content || ''}
-Finale: ${state.beats.find(b=>b.id==='finale')?.content || ''}
-Final Image: ${state.beats.find(b=>b.id==='finalimage')?.content || ''}
-Premise: ${state.premise.substring(0, 200)}
-POV: ${state.pov}
-
-Return JSON: { "chapters": [ { "number":15, "title":"Title", "synopsis":"2-3 sentences of what happens.", "pov_character":"name", "setting":"place", "beat":"STC beat", "wordCount":2500 } ] }
-Write exactly 12 chapters (15 through 26). Keep synopses to 2-3 sentences each.`;
-
-  try {
-    showLoading('chapter-plan-container', 'Building Act 1 & Act 2A chapters…', 'Batch 1 of 2');
-    const data1 = await callClaudeJSON(SYSTEM, USER1, 1300);
-
-    showLoading('chapter-plan-container', 'Building Act 2B & Act 3 chapters…', 'Batch 2 of 2 (waiting for rate limit…)');
-    const data2 = await callClaudeJSON(SYSTEM, USER2, 1300);
-
-    const allChapters = [
-      ...(data1.chapters || []),
-      ...(data2.chapters || [])
-    ];
-
-    state.chapters = allChapters.map(ch => ({
-      ...ch,
-      status: 'pending',
-      content: '',
-      score: 0,
-      revisions: 0,
-      critique: '',
-      approved: false
-    }));
-
-    const totalWords = state.chapters.reduce((s,c) => s+(c.wordCount||2500), 0);
-    document.getElementById('stat-chapters').textContent = state.chapters.length;
-    document.getElementById('stat-words-est').textContent = Math.round(totalWords/1000) + 'k';
-    document.getElementById('stat-pov').textContent = state.pov.split(' ')[0];
-    document.getElementById('chapter-stats').classList.remove('hidden');
-
-    renderChapterPlan();
-    document.getElementById('chapter-plan-approve').classList.remove('hidden');
-    document.getElementById('sidebar-status-text').textContent = `${state.genre} · ${state.chapters.length} Chapters Planned`;
-  } catch(e) {
-    showStageError('chapter-plan-container', e);
+  // Stage nav
+  for(var i=0;i<5;i++){
+    (function(n){var nav=document.getElementById('sn'+n);if(nav)nav.addEventListener('click',function(){goStage(n);});})(i);
   }
-}
 
-function renderChapterPlan() {
-  let html = '';
-  state.chapters.forEach((ch, i) => {
-    html += `
-      <div class="beat-item" id="chplan-${i}">
-        <div class="beat-header" onclick="toggleChPlan(${i})" style="cursor:pointer">
-          <span class="beat-num ch-num">Ch.${ch.number}</span>
-          <span class="beat-name">${ch.title}</span>
-          ${ch.beat ? `<span class="badge badge-chapter" style="font-size:10px;padding:2px 7px">${ch.beat}</span>` : ''}
-          <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink3);margin-left:6px">${(ch.wordCount||2800).toLocaleString()}w</span>
-          <span style="color:var(--ink3);font-size:12px;margin-left:8px">▾</span>
-        </div>
-        <div class="beat-body" id="chbody-${i}">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;font-size:12px;font-family:var(--font-mono);color:var(--ink3)">
-            <span>POV: ${ch.pov_character || state.pov}</span>
-            <span>Setting: ${ch.setting || '—'}</span>
-          </div>
-          <textarea rows="4" onchange="updateChSynopsis(${i}, this.value)">${ch.synopsis}</textarea>
-          ${ch.emotionalArc ? `<div style="margin-top:8px;font-size:12px;font-style:italic;color:var(--ink3)">Arc: ${ch.emotionalArc}</div>` : ''}
-        </div>
-      </div>`;
-  });
-  document.getElementById('chapter-plan-container').innerHTML = html;
-}
+  // Stage 0 buttons
+  document.getElementById('bAnalyze').addEventListener('click',analyzePremise);
+  document.getElementById('bApprovePrem').addEventListener('click',approvePremise);
+  document.getElementById('bRevisePrem').addEventListener('click',function(){document.getElementById('premResult').classList.add('hidden');});
 
-function toggleChPlan(i) {
-  document.getElementById('chbody-'+i).classList.toggle('open');
-}
+  // Stage 1 buttons
+  document.getElementById('bApproveBeats').addEventListener('click',approveBeats);
 
-function updateChSynopsis(i, val) {
-  state.chapters[i].synopsis = val;
-}
+  // Stage 2 buttons
+  document.getElementById('bApproveChPlan').addEventListener('click',approveChPlan);
 
-function approveChapterPlan() {
-  advanceStage(3);
-  renderWritingStudio();
-}
+  // Stage 3 buttons
+  document.getElementById('bWriteAll').addEventListener('click',writeAll);
 
-// ─── STAGE 3: Write Chapters ──────────────────────────────────────────────────
-function renderWritingStudio() {
-  let html = '';
-  state.chapters.forEach((ch, i) => {
-    const dot = ch.approved ? 'dot-approved' : ch.score >= 9 ? 'dot-done' : ch.status === 'writing' ? 'dot-writing' : 'pending' ? 'dot-pending' : 'dot-pending';
-    const statusText = ch.approved ? `✓ ${ch.score}/10` : ch.status === 'done' ? `${ch.score}/10` : ch.status === 'writing' ? 'Writing…' : 'Pending';
-    html += `
-      <div class="chapter-row" id="chrow-${i}" onclick="selectChapter(${i})">
-        <div class="status-dot ${dot}"></div>
-        <div class="ch-num">Ch.${ch.number}</div>
-        <div class="ch-title">${ch.title}</div>
-        <div class="ch-status">${statusText}</div>
-      </div>`;
-  });
-  document.getElementById('chapter-list-sidebar').innerHTML = html;
-}
-
-function selectChapter(i) {
-  state.currentChapter = i;
-  document.querySelectorAll('.chapter-row').forEach((el,j) => el.classList.toggle('active', j===i));
-  renderChapterEditor(i);
-}
-
-function renderChapterEditor(i) {
-  const ch = state.chapters[i];
-  const scoreColor = ch.score >= 9 ? 'var(--teal)' : ch.score >= 7 ? 'var(--gold)' : 'var(--red)';
-
-  document.getElementById('chapter-editor-panel').innerHTML = `
-    <div style="font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--ink2);margin-bottom:3px">Chapter ${ch.number}: ${ch.title}</div>
-    <div style="font-size:12px;font-family:var(--font-mono);color:var(--ink3);margin-bottom:14px">${ch.pov_character || state.pov} · ${ch.setting || ''}</div>
-    
-    <div class="card" style="padding:14px 16px;margin-bottom:14px">
-      <div style="font-size:12px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--ink3);margin-bottom:6px">Synopsis</div>
-      <div style="font-size:14px;color:var(--ink2);line-height:1.65;font-style:italic">${ch.synopsis}</div>
-    </div>
-
-    ${ch.status === 'pending' ? `
-      <div class="action-row" style="margin-bottom:14px">
-        <button class="btn btn-primary" onclick="writeChapter(${i})">✒ Write This Chapter</button>
-      </div>` : ''}
-
-    ${ch.status === 'writing' ? `
-      <div class="loading-card"><div class="quill-anim">✒</div><div class="loading-text">Writing Chapter ${ch.number}…</div></div>` : ''}
-
-    ${ch.content ? `
-      <div class="tab-bar">
-        <div class="tab active" id="tab-prose-${i}" onclick="showTab(${i},'prose')">Prose</div>
-        <div class="tab" id="tab-critique-${i}" onclick="showTab(${i},'critique')">Critique & Score</div>
-      </div>
-      <div id="tabcontent-prose-${i}">
-        <div class="prose-block" contenteditable="true" id="prose-${i}" onblur="saveProseEdit(${i}, this.innerText)">${ch.content}</div>
-        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink3);margin-top:6px">${countWords(ch.content).toLocaleString()} words</div>
-      </div>
-      <div id="tabcontent-critique-${i}" class="hidden">
-        <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
-          <div>
-            <div class="score-display ${ch.score >= 9 ? 'score-10' : ''}" style="color:${scoreColor}">${ch.score || '—'}</div>
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:0.08em">/10 vs bestsellers</div>
-          </div>
-          <div style="flex:1">
-            <div class="rating-bar"><div class="rating-fill" style="width:${(ch.score||0)*10}%"></div></div>
-            <div style="font-size:11px;color:var(--ink3);margin-top:3px">${ch.revisions || 0} revision${ch.revisions !== 1 ? 's' : ''}</div>
-          </div>
-        </div>
-        ${ch.critique ? `<div class="critique-section"><h4>Editor's Critique</h4><p>${ch.critique}</p></div>` : ''}
-        ${ch.improvements ? `<div class="critique-section" style="border-color:var(--teal);background:rgba(26,107,107,0.05);margin-top:10px"><h4>Improvements Applied</h4><p>${ch.improvements}</p></div>` : ''}
-      </div>
-      <div class="action-row" style="margin-top:14px">
-        ${!ch.approved ? `<button class="btn btn-gold btn-sm" onclick="rateChapter(${i})">★ Rate vs Bestsellers</button>` : ''}
-        ${ch.score > 0 && ch.score < 9 && !ch.approved ? `<button class="btn btn-primary btn-sm" onclick="reviseChapter(${i})">✒ Revise to 9/10</button>` : ''}
-        ${ch.score >= 9 && !ch.approved ? `<button class="btn btn-approve btn-sm" onclick="approveChapter(${i})">✓ Approve Chapter</button>` : ''}
-        ${ch.approved ? `<div style="color:var(--teal);font-family:var(--font-mono);font-size:12px;padding:8px 0">✓ Approved (${ch.score}/10)</div>` : ''}
-        <button class="btn btn-outline btn-sm" onclick="rewriteChapter(${i})">↺ Rewrite</button>
-      </div>` : ''}
-  `;
-}
-
-function showTab(i, tab) {
-  ['prose','critique'].forEach(t => {
-    document.getElementById(`tab-${t}-${i}`)?.classList.toggle('active', t===tab);
-    document.getElementById(`tabcontent-${t}-${i}`)?.classList.toggle('hidden', t!==tab);
-  });
-}
-
-function saveProseEdit(i, text) {
-  state.chapters[i].content = text;
-}
-
-function countWords(text) {
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-async function writeChapter(i) {
-  const ch = state.chapters[i];
-  ch.status = 'writing';
-  renderChapterEditor(i);
-
-  const prevSummary = state.chapters.slice(Math.max(0,i-3), i)
-    .filter(c => c.content)
-    .map(c => `Ch.${c.number} "${c.title}": ${c.synopsis}`)
-    .join('\n');
-
-  const SYSTEM = `You are a ${state.genre} novelist writing publishable, bestseller-quality prose.
-Voice: ${state.tone}. POV: ${state.pov}.
-Write vivid scenes with sensory detail, authentic dialogue, and character depth.
-Write PROSE ONLY — no headers, no meta-commentary.`;
-
-  // Segment 1: Opening ~700 words (fits in 1000 output tokens)
-  const USER1 = `Write the OPENING HALF of Chapter ${ch.number}: "${ch.title}" from "${state.novelTitle}".
-
-Chapter synopsis: ${ch.synopsis}
-Setting: ${ch.setting || 'as appropriate'}
-${prevSummary ? `Recent story context:\n${prevSummary}` : ''}
-
-Write ~700 words. Start with a compelling hook. Establish setting, character interiority, and rising tension. End mid-scene so the second half can continue naturally. Write prose only.`;
-
-  // Segment 2: Closing ~700 words
-  const USER2 = (part1) => `Write the CLOSING HALF of Chapter ${ch.number}: "${ch.title}" from "${state.novelTitle}".
-
-Chapter synopsis: ${ch.synopsis}
-First half already written (continue from here):
----
-${part1.slice(-600)}
----
-
-Write ~700 words continuing directly from the above. Resolve the chapter's immediate conflict and end with a hook that pulls the reader into the next chapter. Write prose only — no "Part 2" header.`;
-
-  try {
-    showLoading('chapter-editor-panel', `Writing Chapter ${ch.number} — Part 1…`, 'Opening scenes');
-    // Re-render a loading state in the panel
-    document.getElementById('chapter-editor-panel').innerHTML = `
-      <div style="font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--ink2);margin-bottom:3px">Chapter ${ch.number}: ${ch.title}</div>
-      <div class="loading-card" style="margin-top:14px">
-        <div class="quill-anim">✒</div>
-        <div class="loading-text" id="write-status">Writing Part 1 of 2…</div>
-        <div class="loading-sub">Opening scenes • ~700 words</div>
-      </div>`;
-
-    const part1 = await callClaude(SYSTEM, USER1, 1200);
-
-    const statusEl = document.getElementById('write-status');
-    if (statusEl) statusEl.textContent = 'Writing Part 2 of 2…';
-
-    const part2 = await callClaude(SYSTEM, USER2(part1), 1200);
-
-    ch.content = part1 + '\n\n' + part2;
-    ch.status = 'done';
-    renderWritingStudio();
-    renderChapterEditor(i);
-    toast(`Chapter ${ch.number} written! (${countWords(ch.content).toLocaleString()} words)`);
-  } catch(e) {
-    ch.status = 'pending';
-    renderChapterEditor(i);
-    if (e.message !== 'BILLING_BLOCKED') toast('Error: ' + e.message);
-  }
-}
-
-async function rateChapter(i) {
-  const ch = state.chapters[i];
-  const panel = document.getElementById('chapter-editor-panel');
-  const rateBtn = panel.querySelector('.btn-gold');
-  if (rateBtn) { rateBtn.disabled = true; rateBtn.textContent = '★ Rating…'; }
-
-  const SYSTEM = `You are a rigorous literary critic and editor with deep expertise in ${state.genre} fiction.
-You have read hundreds of bestselling ${state.genre} novels and understand what separates a 6/10 from a 10/10 chapter.
-Return ONLY valid JSON. No markdown, no preamble.`;
-
-  const USER = `Rate this chapter from the ${state.genre} novel "${state.novelTitle}" against bestselling ${state.genre} fiction standards.
-
-Chapter ${ch.number}: "${ch.title}"
-Synopsis: ${ch.synopsis}
-
-Chapter excerpt (first 1500 chars):
-${ch.content.substring(0, 1500)}
-
-Rate on: hook, prose quality, character depth, dialogue, pacing, sensory detail, emotional resonance, genre excellence, chapter ending.
-
-Return JSON only:
-{
-  "score": 7.5,
-  "critique": "2-3 sentences identifying specific strengths and primary weaknesses",
-  "specificIssues": ["issue 1", "issue 2"],
-  "strengths": ["strength 1", "strength 2"],
-  "improvementPriority": "The single most important fix to raise the score"
-}`;
-
-  try {
-    const data = await callClaudeJSON(SYSTEM, USER, 800);
-    ch.score = data.score || 7;
-    ch.critique = data.critique || '';
-    ch.specificIssues = data.specificIssues || [];
-    ch.strengths = data.strengths || [];
-    ch.improvementPriority = data.improvementPriority || '';
-    renderWritingStudio();
-    renderChapterEditor(i);
-    showTab(i, 'critique');
-    toast(`Chapter ${ch.number} scored: ${ch.score}/10`);
-  } catch(e) {
-    toast(`Rating error: ${e.message}`);
-  }
-}
-
-async function reviseChapter(i) {
-  const ch = state.chapters[i];
-  ch.status = 'writing';
-
-  document.getElementById('chapter-editor-panel').innerHTML = `
-    <div style="font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--ink2);margin-bottom:3px">Chapter ${ch.number}: ${ch.title}</div>
-    <div class="loading-card" style="margin-top:14px">
-      <div class="quill-anim">✒</div>
-      <div class="loading-text" id="write-status">Revising Part 1 of 2…</div>
-      <div class="loading-sub">Fixing: ${(ch.improvementPriority||'overall quality').substring(0,60)}</div>
-    </div>`;
-
-  const SYSTEM = `You are a master ${state.genre} author doing a targeted revision to reach 9/10+ bestseller quality.
-Fix the stated issues while preserving what works. Write publishable prose only.
-POV: ${state.pov}. Tone: ${state.tone}.`;
-
-  const half = Math.floor(ch.content.length / 2);
-  const part1orig = ch.content.substring(0, half);
-  const part2orig = ch.content.substring(half);
-
-  const REVISE1 = `Revise the FIRST HALF of this chapter to fix: "${ch.improvementPriority || 'overall prose quality'}"
-Also address: ${(ch.specificIssues||[]).slice(0,2).join('; ')}
-Preserve: ${(ch.strengths||[]).join('; ')}
-
-Original first half:
-${part1orig.substring(0, 1200)}
-
-Rewrite it (same length, better quality). Prose only.`;
-
-  const REVISE2 = (newPart1) => `Revise the SECOND HALF of this chapter to fix: "${ch.improvementPriority || 'overall prose quality'}"
-The first half has already been revised and ends with:
----
-${newPart1.slice(-400)}
----
-
-Original second half to revise:
-${part2orig.substring(0, 1200)}
-
-Continue naturally from the first half's ending. End with a strong chapter hook. Prose only.`;
-
-  try {
-    const rev1 = await callClaude(SYSTEM, REVISE1, 1200);
-
-    const statusEl = document.getElementById('write-status');
-    if (statusEl) statusEl.textContent = 'Revising Part 2 of 2…';
-
-    const rev2 = await callClaude(SYSTEM, REVISE2(rev1), 1200);
-
-    ch.content = rev1 + '\n\n' + rev2;
-    ch.revisions = (ch.revisions || 0) + 1;
-    ch.improvements = `Revision ${ch.revisions}: Targeted "${ch.improvementPriority}".`;
-    ch.status = 'done';
-    ch.score = 0;
-    ch.critique = '';
-    renderWritingStudio();
-    renderChapterEditor(i);
-    toast(`Chapter ${ch.number} revised. Rate again to check score.`);
-  } catch(e) {
-    ch.status = 'done';
-    renderChapterEditor(i);
-    toast(`Error: ${e.message}`);
-  }
-}
-
-async function rewriteChapter(i) {
-  state.chapters[i].content = '';
-  state.chapters[i].status = 'pending';
-  state.chapters[i].score = 0;
-  state.chapters[i].critique = '';
-  renderChapterEditor(i);
-}
-
-function approveChapter(i) {
-  state.chapters[i].approved = true;
-  renderWritingStudio();
-  renderChapterEditor(i);
-  toast(`Chapter ${i+1} approved!`);
-
-  const allApproved = state.chapters.every(ch => ch.approved);
-  if (allApproved) {
-    setTimeout(() => {
-      toast('All chapters approved! Proceeding to final rating…');
-      advanceStage(4);
-      buildFinalRating();
-    }, 1000);
-  }
-}
-
-async function writeAllChapters() {
-  const pending = state.chapters.filter((ch, i) => ch.status === 'pending');
-  if (!pending.length) { toast('No pending chapters.'); return; }
-  toast(`Writing ${pending.length} chapters sequentially…`);
-  for (let i = 0; i < state.chapters.length; i++) {
-    if (state.chapters[i].status === 'pending') {
-      selectChapter(i);
-      await writeChapter(i);
-      await rateChapter(i);
-      if (state.chapters[i].score < 9) {
-        await reviseChapter(i);
-        await rateChapter(i);
-      }
-    }
-  }
-}
-
-// ─── STAGE 4: Final Rating ─────────────────────────────────────────────────────
-async function buildFinalRating() {
-  document.getElementById('final-rating-container').innerHTML = `
-    <div class="loading-card">
-      <div class="quill-anim">✒</div>
-      <div class="loading-text">Evaluating your complete novel…</div>
-      <div class="loading-sub">Comparing against ${state.genre} bestsellers</div>
-    </div>`;
-
-  // Trim chapter summaries to keep input under 8K tokens (~6000 chars safe)
-  const avgScore = (state.chapters.reduce((s,c) => s+(c.score||0), 0) / state.chapters.length).toFixed(1);
-  const chapterSummaries = state.chapters
-    .map(ch => `Ch.${ch.number} "${ch.title}" ${ch.score}/10`)
-    .join(' | ');
-
-  // Pull a few synopses for context without blowing the input limit
-  const sampleSynopses = state.chapters
-    .filter((_,i) => i === 0 || i === Math.floor(state.chapters.length/2) || i === state.chapters.length-1)
-    .map(ch => `Ch.${ch.number}: ${ch.synopsis.substring(0,120)}`)
-    .join('\n');
-
-  const SYSTEM = `You are a senior acquisitions editor and literary critic specialising in ${state.genre} fiction.
-You are exacting, honest, and constructive. Return ONLY valid JSON. No markdown, no preamble.`;
-
-  const USER = `Evaluate the novel "${state.novelTitle}" (${state.genre}) against today's ${state.genre} bestsellers.
-
-Premise: ${state.premise.substring(0, 300)}
-Chapters: ${state.chapters.length} | Avg chapter score: ${avgScore}/10
-Chapter scores: ${chapterSummaries.substring(0, 600)}
-
-Sample synopses (opening, midpoint, finale):
-${sampleSynopses}
-
-Rate the complete novel on: narrative arc, character development, thematic depth, pacing, genre excellence, commercial viability.
-
-Return JSON:
-{
-  "overallScore": 8.5,
-  "commercialVerdict": "One-sentence commercial viability verdict",
-  "overallCritique": "3-4 sentences comprehensive critique",
-  "topStrengths": ["strength 1", "strength 2", "strength 3"],
-  "topWeaknesses": ["weakness 1", "weakness 2"],
-  "comparisonNotes": "How this compares to top ${state.genre} bestsellers today",
-  "publishingRecommendation": "Professional publishing recommendation",
-  "finalEnhancements": ["enhancement 1", "enhancement 2", "enhancement 3"]
-}`;
-
-  try {
-    const data = await callClaudeJSON(SYSTEM, USER, 1200);
-    const score = data.overallScore || 8;
-    const scoreColor = score >= 9 ? 'var(--teal)' : score >= 7 ? 'var(--gold)' : 'var(--red)';
-
-    document.getElementById('final-rating-container').innerHTML = `
-      <div class="card">
-        <div style="display:flex;align-items:center;gap:24px;margin-bottom:20px;flex-wrap:wrap">
-          <div style="text-align:center">
-            <div class="score-display ${score>=9?'score-10':''}" style="color:${scoreColor};font-size:52px">${score}</div>
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:0.08em">/10 OVERALL</div>
-          </div>
-          <div style="flex:1">
-            <div style="font-family:var(--font-display);font-size:20px;font-weight:700;font-style:italic;color:var(--ink2);margin-bottom:4px">"${state.novelTitle}"</div>
-            <div class="badge badge-genre" style="margin-bottom:8px">${state.genre}</div>
-            <div class="rating-bar" style="height:12px"><div class="rating-fill" style="width:${score*10}%"></div></div>
-            <div style="font-size:13px;color:var(--ink2);margin-top:8px;font-style:italic">${data.commercialVerdict || ''}</div>
-          </div>
-        </div>
-
-        <div class="critique-section">
-          <h4>Complete Novel Assessment</h4>
-          <p>${data.overallCritique || ''}</p>
-        </div>
-
-        <div class="section-divider">Top Strengths</div>
-        ${(data.topStrengths||[]).map(s=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">✦ ${s}</div>`).join('')}
-
-        <div class="section-divider">Areas for Enhancement</div>
-        ${(data.topWeaknesses||[]).map(w=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">◆ ${w}</div>`).join('')}
-
-        <div class="critique-section" style="border-color:var(--teal);background:rgba(26,107,107,0.05);margin-top:14px">
-          <h4>Comparison to ${state.genre} Bestsellers</h4>
-          <p>${data.comparisonNotes || ''}</p>
-        </div>
-
-        <div class="section-divider">Publishing Recommendation</div>
-        <div style="font-family:var(--font-display);font-style:italic;font-size:15px;color:var(--ink2);padding:10px 0">${data.publishingRecommendation || ''}</div>
-
-        ${score < 9 ? `
-        <div class="section-divider">Final Enhancements Needed</div>
-        ${(data.finalEnhancements||[]).map((e,i)=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">${i+1}. ${e}</div>`).join('')}
-        <div class="action-row" style="margin-top:16px">
-          <button class="btn btn-primary" id="build-final-rating-btn">↺ Re-evaluate After Revisions</button>
-        </div>` : `
-        <div style="text-align:center;padding:20px 0">
-          <div style="font-family:var(--font-display);font-size:18px;font-style:italic;color:var(--teal)">✦ Your novel meets bestseller standards. ✦</div>
-          <div style="font-size:13px;color:var(--ink3);margin-top:6px">Congratulations — "${state.novelTitle}" is ready for the world.</div>
-        </div>`}
-
-        <div class="section-divider">Chapter Scores</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:4px">
-          ${state.chapters.map(ch => {
-            const c = ch.score >= 9 ? 'var(--teal)' : ch.score >= 7 ? 'var(--gold)' : 'var(--red)';
-            return `<div style="background:var(--parch);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
-              <div style="font-size:11px;font-family:var(--font-mono);color:var(--ink3)">Ch.${ch.number}</div>
-              <div style="font-family:var(--font-display);font-size:12px;font-weight:600;color:var(--ink2);margin:2px 0">${ch.title}</div>
-              <div style="font-size:20px;font-family:var(--font-display);font-weight:700;color:${c};font-style:italic">${ch.score||'—'}/10</div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>`;
-
-    document.getElementById('sidebar-status-text').textContent = `${state.genre} · ${score}/10 Overall`;
-  } catch(e) {
-    showStageError('final-rating-container', e);
-  }
-}
-
-async function applyFinalEnhancements(enhancements) {
-  toast('Go back to Stage 4 and revise any low-scoring chapters, then re-evaluate.');
-}
-
-// Event wiring handled by modal init script above the main script block.
-
-// ─── All UI Event Wiring ─────────────────────────────────────────────────────
-// Using window.load so ALL functions above are guaranteed defined before
-// any event handler references them. No inline onclick anywhere in the HTML.
-window.addEventListener('load', function() {
-
-  // ── Modal: provider tabs ──────────────────────────────────────────────────
-  document.querySelectorAll('[data-provider]').forEach(function(tab) {
-    tab.addEventListener('click', function() {
-      selectProvider(tab.getAttribute('data-provider'));
-    });
-  });
-
-  // ── Modal: quickfill preset buttons ──────────────────────────────────────
-  document.querySelectorAll('.qf-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      quickFill(btn.getAttribute('data-ep'), btn.getAttribute('data-model'));
-    });
-  });
-
-  // ── Modal: Switch to Groq button ─────────────────────────────────────────
-  var groqBtn = document.getElementById('switch-to-groq-btn');
-  if (groqBtn) groqBtn.addEventListener('click', function() {
-    selectProvider('openai');
-    quickFill('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile');
-    setErr('');
-  });
-
-  // ── Modal: Save / Connect button ─────────────────────────────────────────
-  var saveBtn = document.getElementById('save-key-btn');
-  if (saveBtn) saveBtn.addEventListener('click', saveApiKey);
-
-  // ── Modal: eye toggle buttons ─────────────────────────────────────────────
-  [['eye-anthropic','api-key-input'],['eye-openai','openai-key-input'],['eye-custom','custom-key-input']]
-    .forEach(function(pair) {
-      var b = document.getElementById(pair[0]);
-      if (b) b.addEventListener('click', function() { toggleKeyVis(pair[1]); });
-    });
-
-  // ── Modal: Enter key in password inputs ───────────────────────────────────
-  ['api-key-input','openai-key-input','custom-key-input'].forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveApiKey(); });
-  });
-
-  // ── Sidebar: key indicator opens modal ────────────────────────────────────
-  var keyInd = document.getElementById('key-indicator');
-  if (keyInd) keyInd.addEventListener('click', function() { showApiModal(); });
-
-  // ── Stage nav items ───────────────────────────────────────────────────────
-  document.querySelectorAll('[data-action="goStage"]').forEach(function(el) {
-    el.addEventListener('click', function() { goStage(parseInt(el.getAttribute('data-arg'))); });
-  });
-
-  // ── Stage 0: Premise buttons ──────────────────────────────────────────────
-  var analyzeBtn = document.getElementById('analyze-btn');
-  if (analyzeBtn) analyzeBtn.addEventListener('click', analyzePremise);
-
-  var approvePremiseBtn = document.getElementById('approve-premise-btn');
-  if (approvePremiseBtn) approvePremiseBtn.addEventListener('click', approvePremise);
-
-  var revisePremiseBtn = document.getElementById('revise-premise-btn');
-  if (revisePremiseBtn) revisePremiseBtn.addEventListener('click', function() {
-    document.getElementById('premise-result').classList.add('hidden');
-  });
-
-  // ── Stage 1: Beat sheet ───────────────────────────────────────────────────
-  var approveBeatBtn = document.getElementById('approve-beat-btn');
-  if (approveBeatBtn) approveBeatBtn.addEventListener('click', approveBeatSheet);
-
-  // ── Stage 2: Chapter plan ─────────────────────────────────────────────────
-  var approveChaptersBtn = document.getElementById('approve-chapters-btn');
-  if (approveChaptersBtn) approveChaptersBtn.addEventListener('click', approveChapterPlan);
-
-  // ── Stage 3: Write all chapters ───────────────────────────────────────────
-  var writeAllBtn = document.getElementById('write-all-btn');
-  if (writeAllBtn) writeAllBtn.addEventListener('click', writeAllChapters);
-
-  // ── Stage 4: Re-evaluate button (static) ─────────────────────────────────
-  var finalBtn = document.getElementById('build-final-rating-btn');
-  if (finalBtn) finalBtn.addEventListener('click', buildFinalRating);
-
-  // ── Open modal on load if no key saved ───────────────────────────────────
-  if (!apiConfig.key) showApiModal();
-});
-  });
-  // QuickFill preset buttons
-  document.querySelectorAll('.qf-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      quickFill(btn.getAttribute('data-ep'), btn.getAttribute('data-model'));
-    });
-  });
-  // Groq shortcut button
-  var g = document.getElementById('switch-to-groq-btn');
-  if (g) g.addEventListener('click', function() {
-    selectProvider('openai');
-    quickFill('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile');
-    setErr('');
-  });
-  // Save button
-  var s = document.getElementById('save-key-btn');
-  if (s) s.addEventListener('click', saveApiKey);
-  // Sidebar key indicator
-  var k = document.getElementById('key-indicator');
-  if (k) k.addEventListener('click', function() { showApiModal(); });
-  // Eye toggles
-  [['eye-anthropic','api-key-input'],['eye-openai','openai-key-input'],['eye-custom','custom-key-input']].forEach(function(pair) {
-    var b = document.getElementById(pair[0]);
-    if (b) b.addEventListener('click', function() { toggleKeyVis(pair[1]); });
-  });
-  // Enter key in inputs
-  ['api-key-input','openai-key-input','custom-key-input'].forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveApiKey(); });
-  });
-  // Show modal on load if no key
-  if (!apiConfig.key) showApiModal();
-});
+  // Open modal on first load
+  if(!API.key)openMod(false);
+};
 </script>
 </body>
 </html>
