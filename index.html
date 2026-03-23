@@ -700,11 +700,14 @@
     position: fixed;
     inset: 0;
     background: rgba(26,15,0,0.72);
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     z-index: 999;
     backdrop-filter: blur(3px);
+  }
+  #api-modal-overlay.open {
+    display: flex;
   }
 
   #api-modal {
@@ -885,23 +888,23 @@
     </div>
     <nav class="stage-nav">
       <div class="stage-label">Workflow</div>
-      <div class="stage-item active" data-stage="0" onclick="goStage(0)">
+      <div class="stage-item active" data-stage="0" data-action="goStage" data-arg="0">
         <div class="stage-icon" id="icon-0">1</div>
         <div class="stage-name">Premise & Genre</div>
       </div>
-      <div class="stage-item" data-stage="1" onclick="goStage(1)">
+      <div class="stage-item" data-stage="1" data-action="goStage" data-arg="1">
         <div class="stage-icon" id="icon-1">2</div>
         <div class="stage-name">Beat Sheet</div>
       </div>
-      <div class="stage-item" data-stage="2" onclick="goStage(2)">
+      <div class="stage-item" data-stage="2" data-action="goStage" data-arg="2">
         <div class="stage-icon" id="icon-2">3</div>
         <div class="stage-name">Chapter Plan</div>
       </div>
-      <div class="stage-item" data-stage="3" onclick="goStage(3)">
+      <div class="stage-item" data-stage="3" data-action="goStage" data-arg="3">
         <div class="stage-icon" id="icon-3">4</div>
         <div class="stage-name">Write Chapters</div>
       </div>
-      <div class="stage-item" data-stage="4" onclick="goStage(4)">
+      <div class="stage-item" data-stage="4" data-action="goStage" data-arg="4">
         <div class="stage-icon" id="icon-4">5</div>
         <div class="stage-name">Final Rating</div>
       </div>
@@ -948,7 +951,7 @@
           </div>
           <textarea id="premise-input" rows="6" placeholder="Example: A grieving lighthouse keeper on a remote island starts receiving radio transmissions from his dead wife — but the messages are warnings about the future, not the past.&#10;&#10;Or describe a scene, a character, a world, or just a feeling. The agent will build your novel from it."></textarea>
           <div class="action-row">
-            <button class="btn btn-primary" onclick="analyzePremise()">
+            <button class="btn btn-primary" id="analyze-btn">
               ✦ Analyze Premise &amp; Detect Genre
             </button>
           </div>
@@ -966,8 +969,8 @@
             <div id="genre-result-text"></div>
           </div>
           <div class="action-row">
-            <button class="btn btn-approve" onclick="approvePremise()">✓ Approve &amp; Build Beat Sheet</button>
-            <button class="btn btn-outline" onclick="document.getElementById('premise-result').classList.add('hidden')">← Revise Premise</button>
+            <button class="btn btn-approve" id="approve-premise-btn">✓ Approve &amp; Build Beat Sheet</button>
+            <button class="btn btn-outline" id="revise-premise-btn">← Revise Premise</button>
           </div>
         </div>
       </div>
@@ -980,7 +983,7 @@
             <p>Your novel's structural backbone. Click any beat to expand and edit.</p>
           </div>
           <div id="beat-approve-btn" class="hidden">
-            <button class="btn btn-approve" onclick="approveBeatSheet()">✓ Approve Beat Sheet</button>
+            <button class="btn btn-approve" id="approve-beat-btn">✓ Approve Beat Sheet</button>
           </div>
         </div>
         <div id="beat-sheet-container"></div>
@@ -1002,7 +1005,7 @@
         </div>
         <div id="chapter-plan-container"></div>
         <div id="chapter-plan-approve" class="action-row hidden">
-          <button class="btn btn-approve" onclick="approveChapterPlan()">✓ Approve Chapter Plan &amp; Begin Writing</button>
+          <button class="btn btn-approve" id="approve-chapters-btn">✓ Approve Chapter Plan &amp; Begin Writing</button>
         </div>
       </div>
 
@@ -1014,7 +1017,7 @@
             <p>Select a chapter to write, rate, and refine until it scores 9/10 or higher.</p>
           </div>
           <div>
-            <button class="btn btn-gold btn-sm" onclick="writeAllChapters()">✦ Write All Chapters</button>
+            <button class="btn btn-gold btn-sm" id="write-all-btn">✦ Write All Chapters</button>
           </div>
         </div>
         <div class="split-grid">
@@ -1052,7 +1055,7 @@
 <div id="toast"></div>
 
 <!-- API Key Modal -->
-<div id="api-modal-overlay" style="display:none">
+<div id="api-modal-overlay">
   <div id="api-modal" style="max-width:540px">
     <h2>NovelForge</h2>
     <div class="modal-sub">AI Novel Writing Agent · Configure your AI provider</div>
@@ -1183,7 +1186,7 @@ const apiConfig = {
 
 // ─── Modal UI ─────────────────────────────────────────────────────────────────
 function showApiModal(openOnGroq = false) {
-  document.getElementById('api-modal-overlay').style.display = 'flex';
+  document.getElementById('api-modal-overlay').classList.add('open');
   setErr('');
 
   if (openOnGroq) {
@@ -1212,7 +1215,7 @@ function showApiModal(openOnGroq = false) {
 }
 
 function hideApiModal() {
-  document.getElementById('api-modal-overlay').style.display = 'none';
+  document.getElementById('api-modal-overlay').classList.remove('open');
 }
 
 function selectProvider(p) {
@@ -1541,7 +1544,7 @@ async function analyzePremise() {
   if (!premise) { toast('Please enter a premise first.'); return; }
   state.premise = premise;
 
-  const btn = document.querySelector('#stage-0 .btn-primary');
+  const btn = document.getElementById('analyze-btn');
   btn.disabled = true;
   btn.textContent = '✒ Analyzing…';
 
@@ -2255,7 +2258,7 @@ Return JSON:
         <div class="section-divider">Final Enhancements Needed</div>
         ${(data.finalEnhancements||[]).map((e,i)=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">${i+1}. ${e}</div>`).join('')}
         <div class="action-row" style="margin-top:16px">
-          <button class="btn btn-primary" onclick="buildFinalRating()">↺ Re-evaluate After Revisions</button>
+          <button class="btn btn-primary" id="build-final-rating-btn">↺ Re-evaluate After Revisions</button>
         </div>` : `
         <div style="text-align:center;padding:20px 0">
           <div style="font-family:var(--font-display);font-size:18px;font-style:italic;color:var(--teal)">✦ Your novel meets bestseller standards. ✦</div>
@@ -2287,14 +2290,90 @@ async function applyFinalEnhancements(enhancements) {
 
 // Event wiring handled by modal init script above the main script block.
 
-// ─── Modal & UI Event Wiring ──────────────────────────────────────────────────
-// Runs after all app functions are defined above
-// Modal functions available immediately — before DOMContentLoaded
-// Using window.addEventListener ensures this runs after the DOM is ready
+// ─── All UI Event Wiring ─────────────────────────────────────────────────────
+// Using window.load so ALL functions above are guaranteed defined before
+// any event handler references them. No inline onclick anywhere in the HTML.
 window.addEventListener('load', function() {
-  // Provider tabs
+
+  // ── Modal: provider tabs ──────────────────────────────────────────────────
   document.querySelectorAll('[data-provider]').forEach(function(tab) {
-    tab.addEventListener('click', function() { selectProvider(tab.getAttribute('data-provider')); });
+    tab.addEventListener('click', function() {
+      selectProvider(tab.getAttribute('data-provider'));
+    });
+  });
+
+  // ── Modal: quickfill preset buttons ──────────────────────────────────────
+  document.querySelectorAll('.qf-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      quickFill(btn.getAttribute('data-ep'), btn.getAttribute('data-model'));
+    });
+  });
+
+  // ── Modal: Switch to Groq button ─────────────────────────────────────────
+  var groqBtn = document.getElementById('switch-to-groq-btn');
+  if (groqBtn) groqBtn.addEventListener('click', function() {
+    selectProvider('openai');
+    quickFill('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile');
+    setErr('');
+  });
+
+  // ── Modal: Save / Connect button ─────────────────────────────────────────
+  var saveBtn = document.getElementById('save-key-btn');
+  if (saveBtn) saveBtn.addEventListener('click', saveApiKey);
+
+  // ── Modal: eye toggle buttons ─────────────────────────────────────────────
+  [['eye-anthropic','api-key-input'],['eye-openai','openai-key-input'],['eye-custom','custom-key-input']]
+    .forEach(function(pair) {
+      var b = document.getElementById(pair[0]);
+      if (b) b.addEventListener('click', function() { toggleKeyVis(pair[1]); });
+    });
+
+  // ── Modal: Enter key in password inputs ───────────────────────────────────
+  ['api-key-input','openai-key-input','custom-key-input'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveApiKey(); });
+  });
+
+  // ── Sidebar: key indicator opens modal ────────────────────────────────────
+  var keyInd = document.getElementById('key-indicator');
+  if (keyInd) keyInd.addEventListener('click', function() { showApiModal(); });
+
+  // ── Stage nav items ───────────────────────────────────────────────────────
+  document.querySelectorAll('[data-action="goStage"]').forEach(function(el) {
+    el.addEventListener('click', function() { goStage(parseInt(el.getAttribute('data-arg'))); });
+  });
+
+  // ── Stage 0: Premise buttons ──────────────────────────────────────────────
+  var analyzeBtn = document.getElementById('analyze-btn');
+  if (analyzeBtn) analyzeBtn.addEventListener('click', analyzePremise);
+
+  var approvePremiseBtn = document.getElementById('approve-premise-btn');
+  if (approvePremiseBtn) approvePremiseBtn.addEventListener('click', approvePremise);
+
+  var revisePremiseBtn = document.getElementById('revise-premise-btn');
+  if (revisePremiseBtn) revisePremiseBtn.addEventListener('click', function() {
+    document.getElementById('premise-result').classList.add('hidden');
+  });
+
+  // ── Stage 1: Beat sheet ───────────────────────────────────────────────────
+  var approveBeatBtn = document.getElementById('approve-beat-btn');
+  if (approveBeatBtn) approveBeatBtn.addEventListener('click', approveBeatSheet);
+
+  // ── Stage 2: Chapter plan ─────────────────────────────────────────────────
+  var approveChaptersBtn = document.getElementById('approve-chapters-btn');
+  if (approveChaptersBtn) approveChaptersBtn.addEventListener('click', approveChapterPlan);
+
+  // ── Stage 3: Write all chapters ───────────────────────────────────────────
+  var writeAllBtn = document.getElementById('write-all-btn');
+  if (writeAllBtn) writeAllBtn.addEventListener('click', writeAllChapters);
+
+  // ── Stage 4: Re-evaluate button (static) ─────────────────────────────────
+  var finalBtn = document.getElementById('build-final-rating-btn');
+  if (finalBtn) finalBtn.addEventListener('click', buildFinalRating);
+
+  // ── Open modal on load if no key saved ───────────────────────────────────
+  if (!apiConfig.key) showApiModal();
+});
   });
   // QuickFill preset buttons
   document.querySelectorAll('.qf-btn').forEach(function(btn) {
