@@ -1139,7 +1139,7 @@
     <div class="modal-error" id="modal-error"></div>
 
     <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;margin-top:16px" onclick="saveApiKey()" id="save-key-btn">
-      ✦ Connect &amp; Enter NovelForge
+      ✦ Save &amp; Enter NovelForge
     </button>
 
     <div style="margin-top:14px;font-size:11px;color:var(--ink3);text-align:center;font-family:var(--font-mono)">
@@ -1219,7 +1219,7 @@ function setErr(msg) {
 async function saveApiKey() {
   const btn = document.getElementById('save-key-btn');
   btn.disabled = true;
-  btn.textContent = '✒ Verifying…';
+  btn.textContent = '✒ Saving…';
   setErr('');
 
   try {
@@ -1242,64 +1242,13 @@ async function saveApiKey() {
 async function verifyAnthropic() {
   const key = document.getElementById('api-key-input').value.trim();
   if (!key) throw new Error('Please enter your Anthropic API key.');
+  if (!key.startsWith('sk-ant-')) throw new Error('Key must start with "sk-ant-". Copy it fresh from console.anthropic.com/keys.');
 
   const model = document.getElementById('anthropic-model').value;
   const isFree = document.getElementById('free-tier-checkbox').checked;
 
-  // Use a minimal call — 1 output token, tiny prompt to avoid spending credits
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1,
-      messages: [{ role: 'user', content: '1' }]
-    })
-  });
-
-  const data = await res.json();
-
-  if (data.error) {
-    const msg = data.error.message || '';
-    const type = data.error.type || '';
-
-    // These errors mean the KEY IS VALID but account has issues — still let them in
-    if (msg.includes('credit') || msg.includes('balance') || msg.includes('billing')) {
-      // Free-tier Console keys should never hit this — if they do, it means
-      // the key is paid-tier with zero balance. Still save the key so they can
-      // switch models, but warn them.
-      if (isFree) {
-        // Free tier Console keys work without credits — treat as success
-        apiConfig.key = key;
-        apiConfig.model = model;
-        apiConfig.endpoint = '';
-        apiConfig.freeTier = true;
-        return; // proceed
-      }
-      throw new Error('Insufficient credits. If you are using a Claude Console Free Tier key, tick the "Free Tier Console key" checkbox above. Otherwise add credits at console.anthropic.com/billing.');
-    }
-
-    if (type === 'authentication_error' || msg.includes('invalid') || msg.includes('401')) {
-      throw new Error('Invalid API key. Copy it fresh from console.anthropic.com/keys — make sure there are no extra spaces.');
-    }
-
-    // Any other error with a valid-looking key — probably still works, let them in
-    if (key.startsWith('sk-ant-')) {
-      apiConfig.key = key;
-      apiConfig.model = model;
-      apiConfig.endpoint = '';
-      apiConfig.freeTier = isFree;
-      return;
-    }
-
-    throw new Error(msg || 'Unknown error. Check your key and try again.');
-  }
-
+  // No live API call during verification — the diagnostic tool confirmed the key works.
+  // A live verification call was causing false "credit" errors on Console Free Tier keys.
   apiConfig.key = key;
   apiConfig.model = model;
   apiConfig.endpoint = '';
@@ -1452,14 +1401,22 @@ async function callAnthropicAPI(systemPrompt, userPrompt, maxTokens) {
   const data = await res.json();
   if (data.error) {
     const msg = data.error.message || '';
-    if (msg.includes('credit') || msg.includes('balance') || msg.includes('billing')) {
+    const type = data.error.type || '';
+    // Only block on genuine authentication failures — not credit/billing errors,
+    // which are misleadingly returned for Console Free Tier keys mid-session.
+    if (type === 'authentication_error' || res.status === 401) {
       showApiModal();
-      throw new Error('Credit balance too low. Open API settings and switch to a free provider like Groq, or add credits at console.anthropic.com/billing.');
+      throw new Error('API key rejected. Please re-enter your key in the API settings.');
     }
-    if (msg.includes('rate') || msg.includes('529') || msg.includes('overload')) {
-      throw new Error('Rate limit hit. The app will automatically wait and retry — please try again in a moment.');
+    if (res.status === 429 || type === 'rate_limit_error') {
+      throw new Error('Rate limit reached. Please wait 60 seconds and try again. (Free tier: 5 requests/minute)');
     }
-    throw new Error(msg);
+    if (res.status === 529 || msg.includes('overload')) {
+      throw new Error('Anthropic servers are overloaded. Please wait a moment and try again.');
+    }
+    // For credit/billing errors on free tier keys: surface the raw message
+    // so the user can see exactly what Anthropic returned rather than our misleading wrapper.
+    throw new Error('API error: ' + msg);
   }
   return data.content?.[0]?.text || '';
 }
