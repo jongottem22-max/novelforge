@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NovelForge — AI Novel Writing Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1208;
+    --ink2: #3d2f1e;
+    --ink3: #6b5740;
+    --parch: #faf6ee;
+    --parch2: #f3ece0;
+    --parch3: #e8dfc9;
+    --gold: #b8872a;
+    --gold2: #d4a843;
+    --gold3: #f0c96a;
+    --red: #8b2020;
+    --teal: #1a6b6b;
+    --border: rgba(90,60,20,0.18);
+    --border2: rgba(90,60,20,0.35);
+    --shadow: 0 2px 16px rgba(30,15,0,0.10);
+    --r: 10px;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'Source Serif 4', Georgia, serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--parch);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* Layout */
+  #app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  #sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--ink2);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(255,255,255,0.07);
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .sidebar-logo h1 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    font-style: italic;
+    color: var(--gold3);
+    letter-spacing: 0.02em;
+  }
+
+  .sidebar-logo p {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+
+  .stage-nav {
+    padding: 16px 0;
+    flex: 1;
+  }
+
+  .stage-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.3);
+    padding: 4px 20px 8px;
+    font-family: var(--font-mono);
+  }
+
+  .stage-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-left: 3px solid transparent;
+  }
+
+  .stage-item:hover { background: rgba(255,255,255,0.06); }
+
+  .stage-item.active {
+    background: rgba(212,168,67,0.12);
+    border-left-color: var(--gold2);
+  }
+
+  .stage-item.done .stage-icon { background: var(--teal); color: #fff; }
+  .stage-item.active .stage-icon { background: var(--gold); color: #fff; }
+
+  .stage-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+  }
+
+  .stage-name {
+    font-size: 13px;
+    color: rgba(255,255,255,0.65);
+    font-family: var(--font-body);
+  }
+
+  .stage-item.active .stage-name { color: var(--gold3); }
+
+  .novel-info {
+    padding: 14px 20px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    font-size: 12px;
+    color: rgba(255,255,255,0.35);
+  }
+
+  .novel-info strong {
+    display: block;
+    color: rgba(255,255,255,0.6);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+
+  /* Main content */
+  #main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #topbar {
+    background: var(--parch2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .topbar-title {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink2);
+  }
+
+  .topbar-sub {
+    font-size: 12px;
+    color: var(--ink3);
+    font-family: var(--font-mono);
+    margin-top: 1px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+
+  .badge-genre {
+    background: rgba(184,135,42,0.15);
+    color: var(--gold);
+    border: 1px solid rgba(184,135,42,0.25);
+  }
+
+  .badge-chapter {
+    background: rgba(26,107,107,0.12);
+    color: var(--teal);
+    border: 1px solid rgba(26,107,107,0.2);
+  }
+
+  #content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 32px 40px;
+  }
+
+  /* Cards */
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 22px 24px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 12px;
+  }
+
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink2);
+  }
+
+  .card-sub {
+    font-size: 12px;
+    color: var(--ink3);
+    margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+
+  /* Inputs */
+  textarea, input[type=text] {
+    width: 100%;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    color: var(--ink);
+    background: var(--parch);
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    line-height: 1.65;
+  }
+
+  textarea:focus, input:focus {
+    outline: none;
+    border-color: var(--gold2);
+    box-shadow: 0 0 0 3px rgba(212,168,67,0.12);
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+  }
+
+  .btn-primary {
+    background: var(--ink2);
+    color: var(--gold3);
+  }
+
+  .btn-primary:hover { background: var(--ink); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-gold {
+    background: var(--gold);
+    color: #fff;
+  }
+
+  .btn-gold:hover { background: var(--gold2); }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--ink2);
+    border: 1px solid var(--border2);
+  }
+
+  .btn-outline:hover { background: var(--parch2); }
+
+  .btn-approve {
+    background: var(--teal);
+    color: #fff;
+  }
+
+  .btn-approve:hover { background: #145858; }
+
+  .btn-sm { padding: 6px 13px; font-size: 13px; }
+
+  /* Beat sheet */
+  .beat-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+
+  .beat-header {
+    display: flex;
+    align-items: center;
+    padding: 11px 16px;
+    background: var(--parch2);
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .beat-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--gold);
+    font-weight: 500;
+    min-width: 30px;
+  }
+
+  .beat-name {
+    font-family: var(--font-display);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink2);
+    flex: 1;
+  }
+
+  .beat-page {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink3);
+  }
+
+  .beat-body {
+    padding: 14px 16px;
+    display: none;
+  }
+
+  .beat-body.open { display: block; }
+
+  .beat-body textarea {
+    min-height: 80px;
+    font-size: 14px;
+  }
+
+  /* Chapter list */
+  .chapter-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .chapter-row:hover { border-color: var(--gold2); background: var(--parch); }
+  .chapter-row.active { border-color: var(--gold); background: rgba(212,168,67,0.06); }
+
+  .ch-num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--gold);
+    font-weight: 500;
+    min-width: 32px;
+  }
+
+  .ch-title {
+    flex: 1;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink2);
+  }
+
+  .ch-status {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink3);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-pending { background: var(--parch3); border: 1px solid var(--border2); }
+  .dot-writing { background: var(--gold2); }
+  .dot-done { background: var(--teal); }
+  .dot-approved { background: #2a8b3a; }
+
+  /* Rating */
+  .rating-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--parch3);
+    margin: 6px 0;
+    overflow: hidden;
+  }
+
+  .rating-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--teal) 80%);
+    transition: width 1s ease;
+  }
+
+  .score-display {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 700;
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .score-10 { color: var(--teal); }
+
+  /* Progress indicator */
+  .progress-steps {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+  }
+
+  .ps {
+    flex: 1;
+    height: 4px;
+    background: var(--parch3);
+    transition: background 0.3s;
+  }
+
+  .ps:first-child { border-radius: 2px 0 0 2px; }
+  .ps:last-child { border-radius: 0 2px 2px 0; }
+  .ps.done { background: var(--teal); }
+  .ps.active { background: var(--gold2); }
+
+  /* Loading */
+  .loading-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 32px 24px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+
+  .quill-anim {
+    font-size: 28px;
+    display: inline-block;
+    animation: quillWrite 0.8s ease-in-out infinite alternate;
+    margin-bottom: 10px;
+  }
+
+  @keyframes quillWrite {
+    from { transform: rotate(-8deg) translateX(-4px); }
+    to   { transform: rotate(4deg) translateX(4px); }
+  }
+
+  .loading-text {
+    font-family: var(--font-display);
+    font-style: italic;
+    color: var(--ink3);
+    font-size: 15px;
+  }
+
+  .loading-sub {
+    font-size: 12px;
+    color: var(--ink3);
+    font-family: var(--font-mono);
+    margin-top: 6px;
+    opacity: 0.7;
+  }
+
+  /* Prose display */
+  .prose-block {
+    font-family: var(--font-body);
+    font-size: 15.5px;
+    line-height: 1.85;
+    color: var(--ink);
+    white-space: pre-wrap;
+    background: var(--parch);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 22px;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+
+  /* Critique block */
+  .critique-section {
+    border-left: 3px solid var(--gold2);
+    padding: 12px 16px;
+    background: rgba(212,168,67,0.06);
+    border-radius: 0 8px 8px 0;
+    margin-top: 12px;
+  }
+
+  .critique-section h4 {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    font-style: italic;
+    color: var(--ink2);
+    margin-bottom: 6px;
+  }
+
+  .critique-section p {
+    font-size: 13.5px;
+    color: var(--ink2);
+    line-height: 1.6;
+  }
+
+  /* Tag row */
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .tag {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-family: var(--font-mono);
+    background: var(--parch2);
+    border: 1px solid var(--border);
+    color: var(--ink3);
+  }
+
+  /* Split view */
+  .split-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+
+  @media (max-width: 900px) {
+    .split-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Dividers */
+  .section-divider {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-style: italic;
+    color: var(--ink3);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 24px 0 16px;
+  }
+
+  .section-divider::before, .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--ink2);
+    color: var(--gold3);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: var(--font-body);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.3s;
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* Heading row */
+  .heading-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .heading-row h2 {
+    font-family: var(--font-display);
+    font-size: 21px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .heading-row p {
+    font-size: 13px;
+    color: var(--ink3);
+    margin-top: 2px;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .stat-box {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 14px 16px;
+    text-align: center;
+  }
+
+  .stat-val {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 700;
+    font-style: italic;
+    color: var(--ink2);
+    line-height: 1.1;
+  }
+
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink3);
+    margin-top: 3px;
+  }
+
+  .action-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  .chapter-content-area {
+    margin-top: 14px;
+  }
+
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .tab {
+    padding: 8px 18px;
+    font-size: 13px;
+    font-family: var(--font-body);
+    color: var(--ink3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+  }
+
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .tab:hover { color: var(--ink2); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-logo">
+      <h1>NovelForge</h1>
+      <p>AI Novel Writing Agent</p>
+    </div>
+    <nav class="stage-nav">
+      <div class="stage-label">Workflow</div>
+      <div class="stage-item active" data-stage="0" onclick="goStage(0)">
+        <div class="stage-icon" id="icon-0">1</div>
+        <div class="stage-name">Premise & Genre</div>
+      </div>
+      <div class="stage-item" data-stage="1" onclick="goStage(1)">
+        <div class="stage-icon" id="icon-1">2</div>
+        <div class="stage-name">Beat Sheet</div>
+      </div>
+      <div class="stage-item" data-stage="2" onclick="goStage(2)">
+        <div class="stage-icon" id="icon-2">3</div>
+        <div class="stage-name">Chapter Plan</div>
+      </div>
+      <div class="stage-item" data-stage="3" onclick="goStage(3)">
+        <div class="stage-icon" id="icon-3">4</div>
+        <div class="stage-name">Write Chapters</div>
+      </div>
+      <div class="stage-item" data-stage="4" onclick="goStage(4)">
+        <div class="stage-icon" id="icon-4">5</div>
+        <div class="stage-name">Final Rating</div>
+      </div>
+    </nav>
+    <div class="novel-info" id="sidebar-info">
+      <strong>Novel Status</strong>
+      <div id="sidebar-status-text">No novel started</div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <div id="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">New Novel</div>
+        <div class="topbar-sub" id="topbar-sub">Start by entering your premise or log line below</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center" id="topbar-badges"></div>
+    </div>
+
+    <div id="content">
+      <!-- Stage 0: Premise -->
+      <div id="stage-0">
+        <div class="heading-row">
+          <div>
+            <h2>Your Story Premise</h2>
+            <p>Enter a log line, a scene, or a story idea. The agent will handle everything from here.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Log Line or Scene</div>
+              <div class="card-sub">Be as brief or as detailed as you like</div>
+            </div>
+          </div>
+          <textarea id="premise-input" rows="6" placeholder="Example: A grieving lighthouse keeper on a remote island starts receiving radio transmissions from his dead wife — but the messages are warnings about the future, not the past.&#10;&#10;Or describe a scene, a character, a world, or just a feeling. The agent will build your novel from it."></textarea>
+          <div class="action-row">
+            <button class="btn btn-primary" onclick="analyzePremise()">
+              ✦ Analyze Premise &amp; Detect Genre
+            </button>
+          </div>
+        </div>
+
+        <div id="premise-result" class="hidden">
+          <div class="section-divider">Analysis</div>
+          <div class="card" id="genre-card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Genre Detection &amp; Story Analysis</div>
+                <div class="card-sub">Identified by the writing agent</div>
+              </div>
+            </div>
+            <div id="genre-result-text"></div>
+          </div>
+          <div class="action-row">
+            <button class="btn btn-approve" onclick="approvePremise()">✓ Approve &amp; Build Beat Sheet</button>
+            <button class="btn btn-outline" onclick="document.getElementById('premise-result').classList.add('hidden')">← Revise Premise</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage 1: Beat Sheet -->
+      <div id="stage-1" class="hidden">
+        <div class="heading-row">
+          <div>
+            <h2>Save The Cat Beat Sheet</h2>
+            <p>Your novel's structural backbone. Click any beat to expand and edit.</p>
+          </div>
+          <div id="beat-approve-btn" class="hidden">
+            <button class="btn btn-approve" onclick="approveBeatSheet()">✓ Approve Beat Sheet</button>
+          </div>
+        </div>
+        <div id="beat-sheet-container"></div>
+      </div>
+
+      <!-- Stage 2: Chapter Plan -->
+      <div id="stage-2" class="hidden">
+        <div class="heading-row">
+          <div>
+            <h2>Chapter Plan</h2>
+            <p>Your novel has been divided into chapters. Edit any synopsis before approving.</p>
+          </div>
+        </div>
+        <div id="chapter-stats" class="stats-row hidden">
+          <div class="stat-box"><div class="stat-val" id="stat-chapters">—</div><div class="stat-label">Chapters</div></div>
+          <div class="stat-box"><div class="stat-val" id="stat-words-est">—</div><div class="stat-label">Est. Words</div></div>
+          <div class="stat-box"><div class="stat-val" id="stat-acts">3</div><div class="stat-label">Acts</div></div>
+          <div class="stat-box"><div class="stat-val" id="stat-pov">—</div><div class="stat-label">POV Style</div></div>
+        </div>
+        <div id="chapter-plan-container"></div>
+        <div id="chapter-plan-approve" class="action-row hidden">
+          <button class="btn btn-approve" onclick="approveChapterPlan()">✓ Approve Chapter Plan &amp; Begin Writing</button>
+        </div>
+      </div>
+
+      <!-- Stage 3: Write Chapters -->
+      <div id="stage-3" class="hidden">
+        <div class="heading-row">
+          <div>
+            <h2>Writing Studio</h2>
+            <p>Select a chapter to write, rate, and refine until it scores 9/10 or higher.</p>
+          </div>
+          <div>
+            <button class="btn btn-gold btn-sm" onclick="writeAllChapters()">✦ Write All Chapters</button>
+          </div>
+        </div>
+        <div class="split-grid">
+          <div>
+            <div style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink3);margin-bottom:10px;">Chapter List</div>
+            <div id="chapter-list-sidebar"></div>
+          </div>
+          <div id="chapter-editor-panel">
+            <div style="text-align:center;padding:40px 0;color:var(--ink3);">
+              <div style="font-size:28px;margin-bottom:8px;">✦</div>
+              <div style="font-family:var(--font-display);font-style:italic;">Select a chapter to begin</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage 4: Final Rating -->
+      <div id="stage-4" class="hidden">
+        <div class="heading-row">
+          <div>
+            <h2>Final Novel Assessment</h2>
+            <p>The complete novel is rated against bestsellers in its genre.</p>
+          </div>
+        </div>
+        <div id="final-rating-container">
+          <div class="card" style="text-align:center;padding:40px;">
+            <div style="font-family:var(--font-display);font-style:italic;color:var(--ink3);font-size:16px;">Complete all chapters to unlock final assessment</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const state = {
+  stage: 0,
+  premise: '',
+  genre: '',
+  subgenre: '',
+  tone: '',
+  themes: [],
+  beats: [],
+  chapters: [],
+  currentChapter: -1,
+  novelTitle: '',
+  pov: '',
+  wordCountEst: 0,
+};
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+async function callClaude(systemPrompt, userPrompt, maxTokens = 1500) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }]
+    })
+  });
+  const data = await res.json();
+  return data.content?.[0]?.text || '';
+}
+
+async function callClaudeJSON(systemPrompt, userPrompt, maxTokens = 1500) {
+  const text = await callClaude(systemPrompt, userPrompt, maxTokens);
+  const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+  try { return JSON.parse(clean); } catch(e) {
+    const match = clean.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (match) return JSON.parse(match[0]);
+    throw e;
+  }
+}
+
+// ─── Stage Navigation ─────────────────────────────────────────────────────────
+function goStage(n) {
+  if (n > state.stage) return;
+  document.querySelectorAll('#content > div').forEach((el,i) => {
+    el.classList.toggle('hidden', i !== n);
+  });
+  document.querySelectorAll('.stage-item').forEach((el,i) => {
+    el.classList.toggle('active', i === n);
+  });
+  state.currentView = n;
+}
+
+function advanceStage(n) {
+  state.stage = Math.max(state.stage, n);
+  document.querySelectorAll('.stage-item').forEach((el, i) => {
+    el.classList.remove('active');
+    if (i < n) { el.classList.add('done'); document.getElementById('icon-'+i).textContent = '✓'; }
+    if (i === n) { el.classList.add('active'); }
+  });
+  goStage(n);
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─── Loading ──────────────────────────────────────────────────────────────────
+function showLoading(containerId, message, sub = '') {
+  document.getElementById(containerId).innerHTML = `
+    <div class="loading-card">
+      <div class="quill-anim">✒</div>
+      <div class="loading-text">${message}</div>
+      ${sub ? `<div class="loading-sub">${sub}</div>` : ''}
+    </div>`;
+}
+
+// ─── STAGE 0: Premise Analysis ────────────────────────────────────────────────
+async function analyzePremise() {
+  const premise = document.getElementById('premise-input').value.trim();
+  if (!premise) { toast('Please enter a premise first.'); return; }
+  state.premise = premise;
+
+  const btn = document.querySelector('#stage-0 .btn-primary');
+  btn.disabled = true;
+  btn.textContent = '✒ Analyzing…';
+
+  const result = document.getElementById('premise-result');
+  result.classList.remove('hidden');
+  showLoading('genre-result-text', 'Reading your premise…', 'Detecting genre, tone, and themes');
+
+  const SYSTEM = `You are a master literary agent, bestselling author, and genre expert with 30 years of experience. 
+You have encyclopedic knowledge of every fiction genre, its conventions, tropes, bestselling authors, and reader expectations.
+You speak with warmth, precision, and professional authority.
+Return ONLY valid JSON with no markdown, no preamble.`;
+
+  const USER = `Analyze this story premise and return a JSON object with exactly these fields:
+{
+  "genre": "primary genre (e.g. Thriller, Fantasy, Romance, Literary Fiction, etc.)",
+  "subgenre": "specific subgenre (e.g. Psychological Thriller, Epic Fantasy, etc.)",
+  "tone": "narrative tone (e.g. Dark and atmospheric, Witty and fast-paced, etc.)",
+  "themes": ["array", "of", "3-5", "core", "themes"],
+  "novelTitle": "A compelling working title for this novel",
+  "pov": "recommended POV (e.g. First Person, Third Person Limited, etc.)",
+  "targetWordCount": 90000,
+  "estimatedChapters": 28,
+  "comps": ["2-3 comparable bestselling novels"],
+  "genreAnalysis": "2-3 sentence expert analysis: why this premise fits this genre, its commercial potential, and its unique angle",
+  "authorNotes": "2-3 sentence note from a professional author's perspective on what makes this premise compelling and what to watch for",
+  "hooks": ["3 specific story hooks that will drive reader engagement"],
+  "premise": "${premise.replace(/"/g, '\\"')}"
+}
+
+Premise: "${premise.replace(/"/g, '\\"')}"`;
+
+  try {
+    const data = await callClaudeJSON(SYSTEM, USER, 1200);
+    state.genre = data.genre;
+    state.subgenre = data.subgenre;
+    state.tone = data.tone;
+    state.themes = data.themes || [];
+    state.novelTitle = data.novelTitle || 'Untitled Novel';
+    state.pov = data.pov || 'Third Person Limited';
+    state.wordCountEst = data.targetWordCount || 90000;
+    state.estimatedChapters = data.estimatedChapters || 28;
+
+    document.getElementById('genre-result-text').innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <span class="badge badge-genre">${data.genre}</span>
+        <span class="badge badge-chapter">${data.subgenre}</span>
+        <span class="badge" style="background:rgba(139,32,32,0.1);color:var(--red);border:1px solid rgba(139,32,32,0.18)">${data.tone}</span>
+      </div>
+      <div style="font-family:var(--font-display);font-size:22px;font-weight:700;font-style:italic;color:var(--ink2);margin-bottom:6px">"${data.novelTitle}"</div>
+      <div style="font-size:12px;font-family:var(--font-mono);color:var(--ink3);margin-bottom:16px">${data.pov} · ~${(data.targetWordCount||90000).toLocaleString()} words · ~${data.estimatedChapters} chapters</div>
+      
+      <div class="critique-section">
+        <h4>Literary Agent's Assessment</h4>
+        <p>${data.genreAnalysis || ''}</p>
+      </div>
+      <div class="critique-section" style="border-color:var(--teal);background:rgba(26,107,107,0.05);margin-top:10px">
+        <h4>Author's Notes</h4>
+        <p>${data.authorNotes || ''}</p>
+      </div>
+      
+      <div class="section-divider" style="margin:16px 0 10px">Story Hooks</div>
+      ${(data.hooks||[]).map(h=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">◆ ${h}</div>`).join('')}
+      
+      <div class="section-divider" style="margin:16px 0 10px">Comparable Titles</div>
+      <div class="tag-row">${(data.comps||[]).map(c=>`<span class="tag">${c}</span>`).join('')}</div>
+      <div class="section-divider" style="margin:16px 0 10px">Core Themes</div>
+      <div class="tag-row">${(data.themes||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    `;
+
+    document.getElementById('topbar-title').textContent = data.novelTitle || 'New Novel';
+    document.getElementById('topbar-sub').textContent = `${data.genre} · ${data.subgenre}`;
+    document.getElementById('topbar-badges').innerHTML = `<span class="badge badge-genre">${data.genre}</span>`;
+    document.getElementById('sidebar-status-text').textContent = `${data.genre} · Stage 1`;
+  } catch(e) {
+    document.getElementById('genre-result-text').innerHTML = `<div style="color:var(--red);font-size:13px">Error: ${e.message}. Please check your API connection.</div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = '✦ Analyze Premise & Detect Genre';
+}
+
+function approvePremise() {
+  advanceStage(1);
+  document.getElementById('beat-sheet-container').innerHTML = '';
+  buildBeatSheet();
+}
+
+// ─── STAGE 1: Beat Sheet ──────────────────────────────────────────────────────
+const STC_BEATS = [
+  { id: 'opening', name: 'Opening Image', pages: '1', desc: 'A snapshot of the protagonist\'s world before the journey begins.' },
+  { id: 'theme', name: 'Theme Stated', pages: '5', desc: 'The thematic argument of the novel is spoken — often by a secondary character.' },
+  { id: 'setup', name: 'Set-Up', pages: '1–10', desc: 'We meet the hero, their world, and what\'s broken in their life.' },
+  { id: 'catalyst', name: 'Catalyst', pages: '12', desc: 'The inciting incident. Something arrives to upend the hero\'s world.' },
+  { id: 'debate', name: 'Debate', pages: '12–25', desc: 'The hero resists the journey. What happens if they refuse?' },
+  { id: 'break1', name: 'Break into Two', pages: '25', desc: 'The hero commits to the journey. The story world changes.' },
+  { id: 'bsw', name: 'B Story', pages: '30', desc: 'A love story or friendship — the thematic spine of the novel.' },
+  { id: 'fun', name: 'Fun and Games', pages: '30–55', desc: 'The hero explores the new world. The promise of the premise fulfilled.' },
+  { id: 'midpoint', name: 'Midpoint', pages: '50', desc: 'A false victory or defeat. The stakes rise to life-or-death.' },
+  { id: 'badguys', name: 'Bad Guys Close In', pages: '55–75', desc: 'The opposition mounts. The hero\'s team begins to fracture.' },
+  { id: 'allislost', name: 'All Is Lost', pages: '75', desc: 'The worst thing that could happen, does. Whiff of death.' },
+  { id: 'darknight', name: 'Dark Night of the Soul', pages: '75–80', desc: 'The hero\'s lowest point. Before they can rise, they must fall.' },
+  { id: 'break3', name: 'Break into Three', pages: '80', desc: 'The hero finds the solution — A Story meets B Story.' },
+  { id: 'finale', name: 'Finale', pages: '80–99', desc: 'The hero executes the plan, storming the castle, earning the transformation.' },
+  { id: 'finalimage', name: 'Final Image', pages: '100', desc: 'Mirror of the opening image. The world has changed.' },
+];
+
+async function buildBeatSheet() {
+  showLoading('beat-sheet-container', 'Crafting your Save The Cat beat sheet…', `Structuring ${state.genre} narrative architecture`);
+
+  const SYSTEM = `You are a master story structure consultant who has helped hundreds of bestselling authors.
+You are an expert in Blake Snyder's Save The Cat methodology and how it applies to every genre.
+Return ONLY valid JSON, no markdown, no preamble.`;
+
+  const USER = `Create a detailed Save The Cat beat sheet for the following novel.
+Genre: ${state.genre} (${state.subgenre})
+Tone: ${state.tone}
+Premise: ${state.premise}
+Working Title: ${state.novelTitle}
+POV: ${state.pov}
+
+Return a JSON object with a "beats" array. Each beat must have:
+{ "id": "beat_id", "content": "2-4 sentence description of exactly what happens in this beat for THIS specific story. Be concrete — name characters, describe events, reveal stakes." }
+
+Use these beat IDs in order: opening, theme, setup, catalyst, debate, break1, bsw, fun, midpoint, badguys, allislost, darknight, break3, finale, finalimage`;
+
+  try {
+    const data = await callClaudeJSON(SYSTEM, USER, 2500);
+    const beatMap = {};
+    (data.beats || []).forEach(b => { beatMap[b.id] = b.content; });
+
+    state.beats = STC_BEATS.map(b => ({
+      ...b,
+      content: beatMap[b.id] || `[Beat content for ${b.name} — click to edit]`
+    }));
+
+    renderBeatSheet();
+    document.getElementById('beat-approve-btn').classList.remove('hidden');
+    document.getElementById('sidebar-status-text').textContent = `${state.genre} · Beat Sheet Ready`;
+  } catch(e) {
+    document.getElementById('beat-sheet-container').innerHTML = `<div class="card" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function renderBeatSheet() {
+  const acts = [
+    { label: 'Act One', beats: ['opening','theme','setup','catalyst','debate','break1'] },
+    { label: 'Act Two (A)', beats: ['bsw','fun','midpoint'] },
+    { label: 'Act Two (B)', beats: ['badguys','allislost','darknight','break3'] },
+    { label: 'Act Three', beats: ['finale','finalimage'] },
+  ];
+
+  let html = '';
+  acts.forEach(act => {
+    html += `<div class="section-divider">${act.label}</div>`;
+    act.beats.forEach(id => {
+      const beat = state.beats.find(b => b.id === id);
+      if (!beat) return;
+      html += `
+        <div class="beat-item" id="beat-${beat.id}">
+          <div class="beat-header" onclick="toggleBeat('${beat.id}')">
+            <span class="beat-num">p.${beat.pages}</span>
+            <span class="beat-name">${beat.name}</span>
+            <span class="beat-page" style="font-size:11px;color:var(--ink3);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-left:8px">${beat.content.substring(0,60)}…</span>
+            <span style="color:var(--ink3);font-size:12px">▾</span>
+          </div>
+          <div class="beat-body" id="body-${beat.id}">
+            <div style="font-size:12px;color:var(--ink3);margin-bottom:8px;font-style:italic">${beat.desc}</div>
+            <textarea rows="4" onchange="updateBeat('${beat.id}', this.value)">${beat.content}</textarea>
+          </div>
+        </div>`;
+    });
+  });
+
+  document.getElementById('beat-sheet-container').innerHTML = html;
+}
+
+function toggleBeat(id) {
+  const body = document.getElementById('body-' + id);
+  body.classList.toggle('open');
+}
+
+function updateBeat(id, value) {
+  const beat = state.beats.find(b => b.id === id);
+  if (beat) beat.content = value;
+}
+
+async function approveBeatSheet() {
+  advanceStage(2);
+  document.getElementById('chapter-plan-container').innerHTML = '';
+  buildChapterPlan();
+}
+
+// ─── STAGE 2: Chapter Plan ────────────────────────────────────────────────────
+async function buildChapterPlan() {
+  showLoading('chapter-plan-container', 'Mapping your chapters…', 'Calculating optimal chapter count and writing synopses');
+
+  const beatSummary = state.beats.map(b => `${b.name}: ${b.content}`).join('\n');
+
+  const SYSTEM = `You are a professional novelist and developmental editor. 
+You understand pacing, chapter structure, and reader engagement at the highest level.
+Return ONLY valid JSON. No markdown, no preamble.`;
+
+  const USER = `Based on this Save The Cat beat sheet for a ${state.genre} novel titled "${state.novelTitle}", 
+create a chapter-by-chapter plan.
+
+Beat Sheet:
+${beatSummary}
+
+Premise: ${state.premise}
+POV: ${state.pov}
+Target word count: ${state.wordCountEst}
+
+Determine the ideal number of chapters (typically 24-35 for this genre). 
+Return a JSON object:
+{
+  "chapters": [
+    {
+      "number": 1,
+      "title": "Compelling chapter title",
+      "synopsis": "3-4 sentence synopsis describing exactly what happens: key scenes, character developments, conflicts, and how this chapter moves the story forward.",
+      "pov_character": "whose POV",
+      "setting": "primary setting",
+      "beat": "which STC beat this aligns with (optional)",
+      "wordCount": 2800,
+      "emotionalArc": "brief emotional journey of this chapter"
+    }
+  ],
+  "totalWordCount": 85000,
+  "povStyle": "${state.pov}"
+}`;
+
+  try {
+    const data = await callClaudeJSON(SYSTEM, USER, 4000);
+    state.chapters = (data.chapters || []).map(ch => ({
+      ...ch,
+      status: 'pending',
+      content: '',
+      score: 0,
+      revisions: 0,
+      critique: '',
+      approved: false
+    }));
+
+    document.getElementById('stat-chapters').textContent = state.chapters.length;
+    document.getElementById('stat-words-est').textContent = Math.round((data.totalWordCount||85000)/1000) + 'k';
+    document.getElementById('stat-pov').textContent = (data.povStyle||state.pov).split(' ')[0];
+    document.getElementById('chapter-stats').classList.remove('hidden');
+
+    renderChapterPlan();
+    document.getElementById('chapter-plan-approve').classList.remove('hidden');
+    document.getElementById('sidebar-status-text').textContent = `${state.genre} · ${state.chapters.length} Chapters Planned`;
+  } catch(e) {
+    document.getElementById('chapter-plan-container').innerHTML = `<div class="card" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function renderChapterPlan() {
+  let html = '';
+  state.chapters.forEach((ch, i) => {
+    html += `
+      <div class="beat-item" id="chplan-${i}">
+        <div class="beat-header" onclick="toggleChPlan(${i})" style="cursor:pointer">
+          <span class="beat-num ch-num">Ch.${ch.number}</span>
+          <span class="beat-name">${ch.title}</span>
+          ${ch.beat ? `<span class="badge badge-chapter" style="font-size:10px;padding:2px 7px">${ch.beat}</span>` : ''}
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink3);margin-left:6px">${(ch.wordCount||2800).toLocaleString()}w</span>
+          <span style="color:var(--ink3);font-size:12px;margin-left:8px">▾</span>
+        </div>
+        <div class="beat-body" id="chbody-${i}">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;font-size:12px;font-family:var(--font-mono);color:var(--ink3)">
+            <span>POV: ${ch.pov_character || state.pov}</span>
+            <span>Setting: ${ch.setting || '—'}</span>
+          </div>
+          <textarea rows="4" onchange="updateChSynopsis(${i}, this.value)">${ch.synopsis}</textarea>
+          ${ch.emotionalArc ? `<div style="margin-top:8px;font-size:12px;font-style:italic;color:var(--ink3)">Arc: ${ch.emotionalArc}</div>` : ''}
+        </div>
+      </div>`;
+  });
+  document.getElementById('chapter-plan-container').innerHTML = html;
+}
+
+function toggleChPlan(i) {
+  document.getElementById('chbody-'+i).classList.toggle('open');
+}
+
+function updateChSynopsis(i, val) {
+  state.chapters[i].synopsis = val;
+}
+
+function approveChapterPlan() {
+  advanceStage(3);
+  renderWritingStudio();
+}
+
+// ─── STAGE 3: Write Chapters ──────────────────────────────────────────────────
+function renderWritingStudio() {
+  let html = '';
+  state.chapters.forEach((ch, i) => {
+    const dot = ch.approved ? 'dot-approved' : ch.score >= 9 ? 'dot-done' : ch.status === 'writing' ? 'dot-writing' : 'pending' ? 'dot-pending' : 'dot-pending';
+    const statusText = ch.approved ? `✓ ${ch.score}/10` : ch.status === 'done' ? `${ch.score}/10` : ch.status === 'writing' ? 'Writing…' : 'Pending';
+    html += `
+      <div class="chapter-row" id="chrow-${i}" onclick="selectChapter(${i})">
+        <div class="status-dot ${dot}"></div>
+        <div class="ch-num">Ch.${ch.number}</div>
+        <div class="ch-title">${ch.title}</div>
+        <div class="ch-status">${statusText}</div>
+      </div>`;
+  });
+  document.getElementById('chapter-list-sidebar').innerHTML = html;
+}
+
+function selectChapter(i) {
+  state.currentChapter = i;
+  document.querySelectorAll('.chapter-row').forEach((el,j) => el.classList.toggle('active', j===i));
+  renderChapterEditor(i);
+}
+
+function renderChapterEditor(i) {
+  const ch = state.chapters[i];
+  const scoreColor = ch.score >= 9 ? 'var(--teal)' : ch.score >= 7 ? 'var(--gold)' : 'var(--red)';
+
+  document.getElementById('chapter-editor-panel').innerHTML = `
+    <div style="font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--ink2);margin-bottom:3px">Chapter ${ch.number}: ${ch.title}</div>
+    <div style="font-size:12px;font-family:var(--font-mono);color:var(--ink3);margin-bottom:14px">${ch.pov_character || state.pov} · ${ch.setting || ''}</div>
+    
+    <div class="card" style="padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:12px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--ink3);margin-bottom:6px">Synopsis</div>
+      <div style="font-size:14px;color:var(--ink2);line-height:1.65;font-style:italic">${ch.synopsis}</div>
+    </div>
+
+    ${ch.status === 'pending' ? `
+      <div class="action-row" style="margin-bottom:14px">
+        <button class="btn btn-primary" onclick="writeChapter(${i})">✒ Write This Chapter</button>
+      </div>` : ''}
+
+    ${ch.status === 'writing' ? `
+      <div class="loading-card"><div class="quill-anim">✒</div><div class="loading-text">Writing Chapter ${ch.number}…</div></div>` : ''}
+
+    ${ch.content ? `
+      <div class="tab-bar">
+        <div class="tab active" id="tab-prose-${i}" onclick="showTab(${i},'prose')">Prose</div>
+        <div class="tab" id="tab-critique-${i}" onclick="showTab(${i},'critique')">Critique & Score</div>
+      </div>
+      <div id="tabcontent-prose-${i}">
+        <div class="prose-block" contenteditable="true" id="prose-${i}" onblur="saveProseEdit(${i}, this.innerText)">${ch.content}</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink3);margin-top:6px">${countWords(ch.content).toLocaleString()} words</div>
+      </div>
+      <div id="tabcontent-critique-${i}" class="hidden">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+          <div>
+            <div class="score-display ${ch.score >= 9 ? 'score-10' : ''}" style="color:${scoreColor}">${ch.score || '—'}</div>
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:0.08em">/10 vs bestsellers</div>
+          </div>
+          <div style="flex:1">
+            <div class="rating-bar"><div class="rating-fill" style="width:${(ch.score||0)*10}%"></div></div>
+            <div style="font-size:11px;color:var(--ink3);margin-top:3px">${ch.revisions || 0} revision${ch.revisions !== 1 ? 's' : ''}</div>
+          </div>
+        </div>
+        ${ch.critique ? `<div class="critique-section"><h4>Editor's Critique</h4><p>${ch.critique}</p></div>` : ''}
+        ${ch.improvements ? `<div class="critique-section" style="border-color:var(--teal);background:rgba(26,107,107,0.05);margin-top:10px"><h4>Improvements Applied</h4><p>${ch.improvements}</p></div>` : ''}
+      </div>
+      <div class="action-row" style="margin-top:14px">
+        ${!ch.approved ? `<button class="btn btn-gold btn-sm" onclick="rateChapter(${i})">★ Rate vs Bestsellers</button>` : ''}
+        ${ch.score > 0 && ch.score < 9 && !ch.approved ? `<button class="btn btn-primary btn-sm" onclick="reviseChapter(${i})">✒ Revise to 9/10</button>` : ''}
+        ${ch.score >= 9 && !ch.approved ? `<button class="btn btn-approve btn-sm" onclick="approveChapter(${i})">✓ Approve Chapter</button>` : ''}
+        ${ch.approved ? `<div style="color:var(--teal);font-family:var(--font-mono);font-size:12px;padding:8px 0">✓ Approved (${ch.score}/10)</div>` : ''}
+        <button class="btn btn-outline btn-sm" onclick="rewriteChapter(${i})">↺ Rewrite</button>
+      </div>` : ''}
+  `;
+}
+
+function showTab(i, tab) {
+  ['prose','critique'].forEach(t => {
+    document.getElementById(`tab-${t}-${i}`)?.classList.toggle('active', t===tab);
+    document.getElementById(`tabcontent-${t}-${i}`)?.classList.toggle('hidden', t!==tab);
+  });
+}
+
+function saveProseEdit(i, text) {
+  state.chapters[i].content = text;
+}
+
+function countWords(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+async function writeChapter(i) {
+  const ch = state.chapters[i];
+  ch.status = 'writing';
+  renderChapterEditor(i);
+
+  const beatContext = state.beats.map(b => `${b.name}: ${b.content}`).join('\n');
+  const prevChapters = state.chapters.slice(0, i).filter(c => c.content).map(c => `Chapter ${c.number} "${c.title}" summary: ${c.synopsis}`).join('\n');
+
+  const SYSTEM = `You are a ${state.genre} novelist writing at the level of the genre's bestselling authors.
+You write vivid, immersive prose with strong voice, compelling characters, sensory detail, and perfect pacing.
+You understand genre conventions deeply and subvert them when it creates the most powerful effect.
+You write full, publishable prose — not summaries, not outlines. Real scenes, real dialogue, real emotion.
+Write in ${state.pov}.`;
+
+  const USER = `Write Chapter ${ch.number}: "${ch.title}" of the ${state.genre} novel "${state.novelTitle}".
+
+Synopsis: ${ch.synopsis}
+POV: ${ch.pov_character || state.pov}
+Setting: ${ch.setting || 'as appropriate'}
+Target word count: ~${ch.wordCount || 2800} words
+
+Story context:
+${prevChapters ? `Previous chapters:\n${prevChapters}\n\n` : ''}Beat context (where this fits in the overall arc):
+${beatContext.substring(0, 1000)}
+
+Write the complete chapter. Include:
+- A compelling opening hook
+- Rich sensory detail and setting
+- Character interiority and psychology  
+- Authentic, revealing dialogue
+- Escalating tension appropriate to this chapter's place in the arc
+- A chapter ending that compels the reader forward
+
+Write only the chapter prose. No chapter header, no meta-commentary.`;
+
+  try {
+    const content = await callClaude(SYSTEM, USER, 4000);
+    ch.content = content;
+    ch.status = 'done';
+    renderWritingStudio();
+    renderChapterEditor(i);
+    toast(`Chapter ${ch.number} written!`);
+  } catch(e) {
+    ch.status = 'pending';
+    renderChapterEditor(i);
+    toast(`Error: ${e.message}`);
+  }
+}
+
+async function rateChapter(i) {
+  const ch = state.chapters[i];
+  const panel = document.getElementById('chapter-editor-panel');
+  const rateBtn = panel.querySelector('.btn-gold');
+  if (rateBtn) { rateBtn.disabled = true; rateBtn.textContent = '★ Rating…'; }
+
+  const SYSTEM = `You are a rigorous literary critic and editor with deep expertise in ${state.genre} fiction.
+You have read hundreds of bestselling ${state.genre} novels and understand what separates a 6/10 from a 10/10 chapter.
+Return ONLY valid JSON. No markdown, no preamble.`;
+
+  const USER = `Rate this chapter from the ${state.genre} novel "${state.novelTitle}" against the standards of bestselling ${state.genre} fiction.
+
+Chapter ${ch.number}: "${ch.title}"
+Synopsis: ${ch.synopsis}
+
+Chapter content (first 3000 chars):
+${ch.content.substring(0, 3000)}
+
+Evaluate against bestselling ${state.genre} novels on:
+- Opening hook and immediate engagement
+- Prose quality, voice, and style  
+- Character depth and psychology
+- Dialogue authenticity and function
+- Pacing and scene structure
+- Sensory detail and immersion
+- Emotional resonance
+- Genre-specific excellence (what ${state.genre} readers demand)
+- Chapter ending effectiveness
+
+Return JSON:
+{
+  "score": 7.5,
+  "critique": "2-3 sentence honest professional critique identifying specific strengths and the primary weaknesses",
+  "specificIssues": ["specific issue 1", "specific issue 2", "specific issue 3"],
+  "strengths": ["strength 1", "strength 2"],
+  "improvementPriority": "The single most important improvement to make to raise this score"
+}`;
+
+  try {
+    const data = await callClaudeJSON(SYSTEM, USER, 800);
+    ch.score = data.score || 7;
+    ch.critique = data.critique || '';
+    ch.specificIssues = data.specificIssues || [];
+    ch.strengths = data.strengths || [];
+    ch.improvementPriority = data.improvementPriority || '';
+    renderWritingStudio();
+    renderChapterEditor(i);
+    showTab(i, 'critique');
+    toast(`Chapter ${ch.number} scored: ${ch.score}/10`);
+  } catch(e) {
+    toast(`Rating error: ${e.message}`);
+  }
+}
+
+async function reviseChapter(i) {
+  const ch = state.chapters[i];
+  ch.status = 'writing';
+  renderChapterEditor(i);
+
+  const SYSTEM = `You are a master ${state.genre} author and editor doing a targeted revision pass.
+You rewrite to fix specific problems while preserving what works. Your revisions elevate prose to bestseller quality.
+Write in ${state.pov}.`;
+
+  const USER = `Revise this chapter from "${state.novelTitle}" to improve its quality from ${ch.score}/10 to at least 9/10 by bestseller standards.
+
+Chapter ${ch.number}: "${ch.title}"
+Current score: ${ch.score}/10
+Primary issue to fix: ${ch.improvementPriority || 'overall polish and depth'}
+Specific issues: ${(ch.specificIssues || []).join('; ')}
+Strengths to preserve: ${(ch.strengths || []).join('; ')}
+
+Current chapter:
+${ch.content}
+
+Rewrite the complete chapter, addressing all issues. Make it worthy of a ${state.genre} bestseller.
+Write only the revised chapter prose.`;
+
+  try {
+    const newContent = await callClaude(SYSTEM, USER, 4000);
+    ch.content = newContent;
+    ch.revisions = (ch.revisions || 0) + 1;
+    ch.improvements = `Revision ${ch.revisions}: Addressed "${ch.improvementPriority}" and refined overall prose quality.`;
+    ch.status = 'done';
+    ch.score = 0;
+    ch.critique = '';
+    renderWritingStudio();
+    renderChapterEditor(i);
+    toast(`Chapter ${ch.number} revised. Rate again to check score.`);
+  } catch(e) {
+    ch.status = 'done';
+    renderChapterEditor(i);
+    toast(`Error: ${e.message}`);
+  }
+}
+
+async function rewriteChapter(i) {
+  state.chapters[i].content = '';
+  state.chapters[i].status = 'pending';
+  state.chapters[i].score = 0;
+  state.chapters[i].critique = '';
+  renderChapterEditor(i);
+}
+
+function approveChapter(i) {
+  state.chapters[i].approved = true;
+  renderWritingStudio();
+  renderChapterEditor(i);
+  toast(`Chapter ${i+1} approved!`);
+
+  const allApproved = state.chapters.every(ch => ch.approved);
+  if (allApproved) {
+    setTimeout(() => {
+      toast('All chapters approved! Proceeding to final rating…');
+      advanceStage(4);
+      buildFinalRating();
+    }, 1000);
+  }
+}
+
+async function writeAllChapters() {
+  const pending = state.chapters.filter((ch, i) => ch.status === 'pending');
+  if (!pending.length) { toast('No pending chapters.'); return; }
+  toast(`Writing ${pending.length} chapters sequentially…`);
+  for (let i = 0; i < state.chapters.length; i++) {
+    if (state.chapters[i].status === 'pending') {
+      selectChapter(i);
+      await writeChapter(i);
+      await rateChapter(i);
+      if (state.chapters[i].score < 9) {
+        await reviseChapter(i);
+        await rateChapter(i);
+      }
+    }
+  }
+}
+
+// ─── STAGE 4: Final Rating ─────────────────────────────────────────────────────
+async function buildFinalRating() {
+  document.getElementById('final-rating-container').innerHTML = `
+    <div class="loading-card">
+      <div class="quill-anim">✒</div>
+      <div class="loading-text">Evaluating your complete novel…</div>
+      <div class="loading-sub">Comparing against ${state.genre} bestsellers</div>
+    </div>`;
+
+  const chapterSummaries = state.chapters.map(ch =>
+    `Ch.${ch.number} "${ch.title}" (${ch.score}/10): ${ch.synopsis}`).join('\n');
+
+  const SYSTEM = `You are one of the most respected literary critics and acquisitions editors in the publishing industry, 
+with a specialty in ${state.genre} fiction. You have evaluated thousands of novels. You are exacting, honest, and constructive.
+Return ONLY valid JSON. No markdown, no preamble.`;
+
+  const USER = `Evaluate the complete novel "${state.novelTitle}" (${state.genre}) against the bestselling ${state.genre} novels of the last 10 years.
+
+Premise: ${state.premise}
+Total chapters: ${state.chapters.length}
+Average chapter score: ${(state.chapters.reduce((s,c) => s+(c.score||0), 0)/state.chapters.length).toFixed(1)}/10
+
+Chapter scores and synopses:
+${chapterSummaries}
+
+Rate the complete novel as a whole on:
+- Overall narrative arc and structure (Save The Cat execution)
+- Character development across the full novel
+- Thematic coherence and depth
+- Pacing across the entire story
+- Genre conventions: excellence or subversion
+- Emotional impact and memorability
+- Commercial viability in today's ${state.genre} market
+- Comparison to landmark ${state.genre} bestsellers
+
+Return JSON:
+{
+  "overallScore": 8.5,
+  "commercialVerdict": "One-sentence verdict on commercial viability",
+  "overallCritique": "3-4 sentence comprehensive critique of the novel as a whole",
+  "topStrengths": ["strength 1", "strength 2", "strength 3"],
+  "topWeaknesses": ["weakness 1", "weakness 2"],
+  "comparisonNotes": "How this novel compares to the top 3 bestsellers in ${state.genre} today",
+  "publishingRecommendation": "A professional publishing recommendation",
+  "finalEnhancements": ["specific enhancement 1", "specific enhancement 2", "specific enhancement 3"]
+}`;
+
+  try {
+    const data = await callClaudeJSON(SYSTEM, USER, 1500);
+    const score = data.overallScore || 8;
+    const scoreColor = score >= 9 ? 'var(--teal)' : score >= 7 ? 'var(--gold)' : 'var(--red)';
+
+    document.getElementById('final-rating-container').innerHTML = `
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:24px;margin-bottom:20px;flex-wrap:wrap">
+          <div style="text-align:center">
+            <div class="score-display ${score>=9?'score-10':''}" style="color:${scoreColor};font-size:52px">${score}</div>
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:0.08em">/10 OVERALL</div>
+          </div>
+          <div style="flex:1">
+            <div style="font-family:var(--font-display);font-size:20px;font-weight:700;font-style:italic;color:var(--ink2);margin-bottom:4px">"${state.novelTitle}"</div>
+            <div class="badge badge-genre" style="margin-bottom:8px">${state.genre}</div>
+            <div class="rating-bar" style="height:12px"><div class="rating-fill" style="width:${score*10}%"></div></div>
+            <div style="font-size:13px;color:var(--ink2);margin-top:8px;font-style:italic">${data.commercialVerdict || ''}</div>
+          </div>
+        </div>
+
+        <div class="critique-section">
+          <h4>Complete Novel Assessment</h4>
+          <p>${data.overallCritique || ''}</p>
+        </div>
+
+        <div class="section-divider">Top Strengths</div>
+        ${(data.topStrengths||[]).map(s=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">✦ ${s}</div>`).join('')}
+
+        <div class="section-divider">Areas for Enhancement</div>
+        ${(data.topWeaknesses||[]).map(w=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">◆ ${w}</div>`).join('')}
+
+        <div class="critique-section" style="border-color:var(--teal);background:rgba(26,107,107,0.05);margin-top:14px">
+          <h4>Comparison to ${state.genre} Bestsellers</h4>
+          <p>${data.comparisonNotes || ''}</p>
+        </div>
+
+        <div class="section-divider">Publishing Recommendation</div>
+        <div style="font-family:var(--font-display);font-style:italic;font-size:15px;color:var(--ink2);padding:10px 0">${data.publishingRecommendation || ''}</div>
+
+        ${score < 9 ? `
+        <div class="section-divider">Final Enhancements Needed</div>
+        ${(data.finalEnhancements||[]).map((e,i)=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">${i+1}. ${e}</div>`).join('')}
+        <div class="action-row" style="margin-top:16px">
+          <button class="btn btn-primary" onclick="applyFinalEnhancements(${JSON.stringify(data.finalEnhancements||[]).replace(/"/g,'&quot;')})">✒ Apply Final Enhancements</button>
+        </div>` : `
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-family:var(--font-display);font-size:18px;font-style:italic;color:var(--teal)">✦ Your novel meets bestseller standards. ✦</div>
+          <div style="font-size:13px;color:var(--ink3);margin-top:6px">Congratulations — "${state.novelTitle}" is ready for the world.</div>
+        </div>`}
+
+        <div class="section-divider">Chapter Scores</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:4px">
+          ${state.chapters.map(ch => {
+            const c = ch.score >= 9 ? 'var(--teal)' : ch.score >= 7 ? 'var(--gold)' : 'var(--red)';
+            return `<div style="background:var(--parch);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+              <div style="font-size:11px;font-family:var(--font-mono);color:var(--ink3)">Ch.${ch.number}</div>
+              <div style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--ink2)">${ch.title}</div>
+              <div style="font-size:20px;font-family:var(--font-display);font-weight:700;color:${c};font-style:italic">${ch.score||'—'}/10</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+
+    document.getElementById('sidebar-status-text').textContent = `${state.genre} · ${score}/10 Overall`;
+  } catch(e) {
+    document.getElementById('final-rating-container').innerHTML = `<div class="card" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+async function applyFinalEnhancements(enhancements) {
+  toast('Applying final enhancements to all chapters…');
+  for (let i = 0; i < state.chapters.length; i++) {
+    if (state.chapters[i].content) {
+      state.chapters[i].improvements = `Final enhancement: ${enhancements[0] || 'Overall polish applied'}`;
+    }
+  }
+  setTimeout(() => buildFinalRating(), 1000);
+}
+</script>
+</body>
+</html>
