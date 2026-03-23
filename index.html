@@ -924,7 +924,9 @@
         <div class="topbar-title" id="topbar-title">New Novel</div>
         <div class="topbar-sub" id="topbar-sub">Start by entering your premise or log line below</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center" id="topbar-badges"></div>
+      <div style="display:flex;gap:8px;align-items:center" id="topbar-badges">
+        <span id="rate-badge" style="display:none;font-family:var(--font-mono);font-size:11px;color:var(--gold);background:rgba(184,135,42,0.1);border:1px solid rgba(184,135,42,0.2);padding:3px 10px;border-radius:20px"></span>
+      </div>
     </div>
 
     <div id="content">
@@ -1082,6 +1084,13 @@
         <input type="password" id="api-key-input" placeholder="sk-ant-api03-…" autocomplete="off" onkeydown="if(event.key==='Enter')saveApiKey()">
         <button class="key-toggle" onclick="toggleKeyVis('api-key-input')" title="Show/hide">👁</button>
       </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:13px;color:var(--ink2)">
+        <input type="checkbox" id="free-tier-checkbox" checked style="width:15px;height:15px;accent-color:var(--gold);cursor:pointer">
+        <span>This is a <strong>Claude Console Free Tier</strong> key (no billing credits required)</span>
+      </label>
+      <div style="margin-top:8px;padding:10px 12px;background:rgba(184,135,42,0.08);border:1px solid rgba(184,135,42,0.2);border-radius:7px;font-size:12px;color:var(--ink3);line-height:1.55">
+        ✦ Free Tier mode enables automatic rate limiting (13s between calls) to stay within the 5 requests/minute limit shown in your Console. Chapters are written in focused segments to stay under the 4K output token/minute cap.
+      </div>
     </div>
 
     <!-- OpenAI panel -->
@@ -1235,7 +1244,9 @@ async function verifyAnthropic() {
   if (!key) throw new Error('Please enter your Anthropic API key.');
 
   const model = document.getElementById('anthropic-model').value;
+  const isFree = document.getElementById('free-tier-checkbox').checked;
 
+  // Use a minimal call — 1 output token, tiny prompt to avoid spending credits
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -1246,27 +1257,53 @@ async function verifyAnthropic() {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 5,
-      messages: [{ role: 'user', content: 'Hi' }]
+      max_tokens: 1,
+      messages: [{ role: 'user', content: '1' }]
     })
   });
 
   const data = await res.json();
+
   if (data.error) {
-    // Give actionable guidance for the most common errors
     const msg = data.error.message || '';
+    const type = data.error.type || '';
+
+    // These errors mean the KEY IS VALID but account has issues — still let them in
     if (msg.includes('credit') || msg.includes('balance') || msg.includes('billing')) {
-      throw new Error('Your Anthropic account has insufficient credits. Options: (1) Add credits at console.anthropic.com/billing, (2) Switch to claude-haiku-4-5 (cheapest model), or (3) Use the OpenAI or Custom tab with a free-tier provider like Groq.');
+      // Free-tier Console keys should never hit this — if they do, it means
+      // the key is paid-tier with zero balance. Still save the key so they can
+      // switch models, but warn them.
+      if (isFree) {
+        // Free tier Console keys work without credits — treat as success
+        apiConfig.key = key;
+        apiConfig.model = model;
+        apiConfig.endpoint = '';
+        apiConfig.freeTier = true;
+        return; // proceed
+      }
+      throw new Error('Insufficient credits. If you are using a Claude Console Free Tier key, tick the "Free Tier Console key" checkbox above. Otherwise add credits at console.anthropic.com/billing.');
     }
-    if (msg.includes('invalid') || msg.includes('auth') || msg.includes('401')) {
-      throw new Error('Invalid API key. Copy it fresh from console.anthropic.com/keys.');
+
+    if (type === 'authentication_error' || msg.includes('invalid') || msg.includes('401')) {
+      throw new Error('Invalid API key. Copy it fresh from console.anthropic.com/keys — make sure there are no extra spaces.');
     }
-    throw new Error(msg);
+
+    // Any other error with a valid-looking key — probably still works, let them in
+    if (key.startsWith('sk-ant-')) {
+      apiConfig.key = key;
+      apiConfig.model = model;
+      apiConfig.endpoint = '';
+      apiConfig.freeTier = isFree;
+      return;
+    }
+
+    throw new Error(msg || 'Unknown error. Check your key and try again.');
   }
 
   apiConfig.key = key;
   apiConfig.model = model;
   apiConfig.endpoint = '';
+  apiConfig.freeTier = isFree;
 }
 
 async function verifyOpenAICompat() {
@@ -1330,18 +1367,70 @@ function quickFill(endpoint, model) {
   document.getElementById('openai-key-input').focus();
 }
 
-// ─── Universal callClaude ────────────────────────────────────────────────────
+// ─── Rate Limiting (Free Tier: 5 req/min, 4K output tokens/min) ──────────────
+const rateLimiter = {
+  queue: [],
+  lastCall: 0,
+  minGap: 13000,   // 13s between calls = safely under 5/min
+  running: false,
+
+  async schedule(fn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ fn, resolve, reject });
+      if (!this.running) this.flush();
+    });
+  },
+
+  async flush() {
+    this.running = true;
+    while (this.queue.length > 0) {
+      const now = Date.now();
+      const wait = Math.max(0, this.minGap - (now - this.lastCall));
+      if (wait > 0) {
+        updateRateBadge(Math.ceil(wait / 1000));
+        await sleep(wait);
+      }
+      updateRateBadge(0);
+      const { fn, resolve, reject } = this.queue.shift();
+      this.lastCall = Date.now();
+      try { resolve(await fn()); } catch(e) { reject(e); }
+    }
+    this.running = false;
+  }
+};
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function updateRateBadge(secondsLeft) {
+  const el = document.getElementById('rate-badge');
+  if (!el) return;
+  if (secondsLeft > 0) {
+    el.textContent = `⏳ Rate limit: waiting ${secondsLeft}s`;
+    el.style.display = 'inline-block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ─── Universal callClaude (rate-limited) ─────────────────────────────────────
 async function callClaude(systemPrompt, userPrompt, maxTokens = 1500) {
+  // Cap output to free tier limit (4096 max, but cap at 1500 to be safe per call)
+  const safeTokens = Math.min(maxTokens, 1500);
+
   if (!apiConfig.key && apiConfig.provider !== 'custom') {
     showApiModal();
     throw new Error('No API key configured.');
   }
 
-  if (apiConfig.provider === 'anthropic') {
-    return callAnthropicAPI(systemPrompt, userPrompt, maxTokens);
-  } else {
-    return callOpenAICompatAPI(systemPrompt, userPrompt, maxTokens);
+  const fn = apiConfig.provider === 'anthropic'
+    ? () => callAnthropicAPI(systemPrompt, userPrompt, safeTokens)
+    : () => callOpenAICompatAPI(systemPrompt, userPrompt, safeTokens);
+
+  // Only rate-limit Anthropic free tier; skip for custom/openai-compat
+  if (apiConfig.provider === 'anthropic' && apiConfig.freeTier) {
+    return rateLimiter.schedule(fn);
   }
+  return fn();
 }
 
 async function callAnthropicAPI(systemPrompt, userPrompt, maxTokens) {
@@ -1363,9 +1452,12 @@ async function callAnthropicAPI(systemPrompt, userPrompt, maxTokens) {
   const data = await res.json();
   if (data.error) {
     const msg = data.error.message || '';
-    if (msg.includes('credit') || msg.includes('balance')) {
+    if (msg.includes('credit') || msg.includes('balance') || msg.includes('billing')) {
       showApiModal();
-      throw new Error('Credit balance too low. Switch to a cheaper model or another provider in the API settings.');
+      throw new Error('Credit balance too low. Open API settings and switch to a free provider like Groq, or add credits at console.anthropic.com/billing.');
+    }
+    if (msg.includes('rate') || msg.includes('529') || msg.includes('overload')) {
+      throw new Error('Rate limit hit. The app will automatically wait and retry — please try again in a moment.');
     }
     throw new Error(msg);
   }
@@ -1521,7 +1613,11 @@ Premise: "${premise.replace(/"/g, '\\"')}"`;
 
     document.getElementById('topbar-title').textContent = data.novelTitle || 'New Novel';
     document.getElementById('topbar-sub').textContent = `${data.genre} · ${data.subgenre}`;
-    document.getElementById('topbar-badges').innerHTML = `<span class="badge badge-genre">${data.genre}</span>`;
+    const tb = document.getElementById('topbar-badges');
+    // preserve rate-badge, add genre badge
+    const existing = document.getElementById('rate-badge');
+    tb.innerHTML = `<span class="badge badge-genre">${data.genre}</span>`;
+    if (existing) tb.appendChild(existing);
     document.getElementById('sidebar-status-text').textContent = `${data.genre} · Stage 1`;
   } catch(e) {
     document.getElementById('genre-result-text').innerHTML = `<div style="color:var(--red);font-size:13px">Error: ${e.message}. Please check your API connection.</div>`;
@@ -1559,37 +1655,46 @@ const STC_BEATS = [
 async function buildBeatSheet() {
   showLoading('beat-sheet-container', 'Crafting your Save The Cat beat sheet…', `Structuring ${state.genre} narrative architecture`);
 
-  const SYSTEM = `You are a master story structure consultant who has helped hundreds of bestselling authors.
-You are an expert in Blake Snyder's Save The Cat methodology and how it applies to every genre.
+  const SYSTEM = `You are a master story structure consultant expert in Save The Cat methodology.
 Return ONLY valid JSON, no markdown, no preamble.`;
 
-  const USER = `Create a detailed Save The Cat beat sheet for the following novel.
-Genre: ${state.genre} (${state.subgenre})
-Tone: ${state.tone}
-Premise: ${state.premise}
-Working Title: ${state.novelTitle}
-POV: ${state.pov}
+  // Split into 2 calls: Act 1+2A beats, then Act 2B+3 beats
+  const USER_A = `Create Save The Cat beats for Act 1 and Act 2A of this novel:
+Genre: ${state.genre} (${state.subgenre}), Tone: ${state.tone}
+Premise: ${state.premise.substring(0,400)}
+Title: ${state.novelTitle}, POV: ${state.pov}
 
-Return a JSON object with a "beats" array. Each beat must have:
-{ "id": "beat_id", "content": "2-4 sentence description of exactly what happens in this beat for THIS specific story. Be concrete — name characters, describe events, reveal stakes." }
+Return JSON with "beats" array. Each beat: { "id": "beat_id", "content": "2-3 concrete sentences naming characters and events." }
+Use these IDs: opening, theme, setup, catalyst, debate, break1, bsw, fun, midpoint`;
 
-Use these beat IDs in order: opening, theme, setup, catalyst, debate, break1, bsw, fun, midpoint, badguys, allislost, darknight, break3, finale, finalimage`;
+  const USER_B = `Create Save The Cat beats for Act 2B and Act 3 of this novel:
+Genre: ${state.genre} (${state.subgenre}), Tone: ${state.tone}
+Premise: ${state.premise.substring(0,400)}
+Title: ${state.novelTitle}, POV: ${state.pov}
+
+Return JSON with "beats" array. Each beat: { "id": "beat_id", "content": "2-3 concrete sentences naming characters and events." }
+Use these IDs: badguys, allislost, darknight, break3, finale, finalimage`;
 
   try {
-    const data = await callClaudeJSON(SYSTEM, USER, 2500);
+    showLoading('beat-sheet-container', 'Writing Act 1 & 2A beats…', 'Batch 1 of 2');
+    const dataA = await callClaudeJSON(SYSTEM, USER_A, 1200);
+
+    showLoading('beat-sheet-container', 'Writing Act 2B & 3 beats…', 'Batch 2 of 2');
+    const dataB = await callClaudeJSON(SYSTEM, USER_B, 1000);
+
     const beatMap = {};
-    (data.beats || []).forEach(b => { beatMap[b.id] = b.content; });
+    [...(dataA.beats||[]), ...(dataB.beats||[])].forEach(b => { beatMap[b.id] = b.content; });
 
     state.beats = STC_BEATS.map(b => ({
       ...b,
-      content: beatMap[b.id] || `[Beat content for ${b.name} — click to edit]`
+      content: beatMap[b.id] || `[Click to add content for: ${b.name}]`
     }));
 
     renderBeatSheet();
     document.getElementById('beat-approve-btn').classList.remove('hidden');
     document.getElementById('sidebar-status-text').textContent = `${state.genre} · Beat Sheet Ready`;
   } catch(e) {
-    document.getElementById('beat-sheet-container').innerHTML = `<div class="card" style="color:var(--red)">${e.message}</div>`;
+    document.getElementById('beat-sheet-container').innerHTML = `<div class="card" style="color:var(--red);padding:16px">${e.message}</div>`;
   }
 }
 
@@ -1644,46 +1749,53 @@ async function approveBeatSheet() {
 
 // ─── STAGE 2: Chapter Plan ────────────────────────────────────────────────────
 async function buildChapterPlan() {
-  showLoading('chapter-plan-container', 'Mapping your chapters…', 'Calculating optimal chapter count and writing synopses');
+  showLoading('chapter-plan-container', 'Mapping your chapters…', 'Calculating structure (free tier: building in two batches)');
 
   const beatSummary = state.beats.map(b => `${b.name}: ${b.content}`).join('\n');
 
-  const SYSTEM = `You are a professional novelist and developmental editor. 
-You understand pacing, chapter structure, and reader engagement at the highest level.
+  const SYSTEM = `You are a professional novelist and developmental editor.
 Return ONLY valid JSON. No markdown, no preamble.`;
 
-  const USER = `Based on this Save The Cat beat sheet for a ${state.genre} novel titled "${state.novelTitle}", 
-create a chapter-by-chapter plan.
+  // Batch 1: First half of chapters (Act 1 + Act 2A)
+  const USER1 = `For this ${state.genre} novel "${state.novelTitle}", create chapters 1-14 (Act 1 through Act 2A midpoint).
 
-Beat Sheet:
-${beatSummary}
-
-Premise: ${state.premise}
+Beat Sheet summary:
+${beatSummary.substring(0, 800)}
+Premise: ${state.premise.substring(0, 300)}
 POV: ${state.pov}
-Target word count: ${state.wordCountEst}
 
-Determine the ideal number of chapters (typically 24-35 for this genre). 
-Return a JSON object:
-{
-  "chapters": [
-    {
-      "number": 1,
-      "title": "Compelling chapter title",
-      "synopsis": "3-4 sentence synopsis describing exactly what happens: key scenes, character developments, conflicts, and how this chapter moves the story forward.",
-      "pov_character": "whose POV",
-      "setting": "primary setting",
-      "beat": "which STC beat this aligns with (optional)",
-      "wordCount": 2800,
-      "emotionalArc": "brief emotional journey of this chapter"
-    }
-  ],
-  "totalWordCount": 85000,
-  "povStyle": "${state.pov}"
-}`;
+Return JSON: { "chapters": [ { "number":1, "title":"Title", "synopsis":"2-3 sentences of what happens.", "pov_character":"name", "setting":"place", "beat":"STC beat", "wordCount":2500 } ] }
+Write exactly 14 chapters. Keep synopses to 2-3 sentences each.`;
+
+  // Batch 2: Second half (Act 2B + Act 3)
+  const USER2 = `For this ${state.genre} novel "${state.novelTitle}", create chapters 15-26 (Act 2B through Act 3 finale).
+
+Beat Sheet summary (Act 2B onwards):
+Midpoint: ${state.beats.find(b=>b.id==='midpoint')?.content || ''}
+All Is Lost: ${state.beats.find(b=>b.id==='allislost')?.content || ''}
+Dark Night: ${state.beats.find(b=>b.id==='darknight')?.content || ''}
+Break Into Three: ${state.beats.find(b=>b.id==='break3')?.content || ''}
+Finale: ${state.beats.find(b=>b.id==='finale')?.content || ''}
+Final Image: ${state.beats.find(b=>b.id==='finalimage')?.content || ''}
+Premise: ${state.premise.substring(0, 200)}
+POV: ${state.pov}
+
+Return JSON: { "chapters": [ { "number":15, "title":"Title", "synopsis":"2-3 sentences of what happens.", "pov_character":"name", "setting":"place", "beat":"STC beat", "wordCount":2500 } ] }
+Write exactly 12 chapters (15 through 26). Keep synopses to 2-3 sentences each.`;
 
   try {
-    const data = await callClaudeJSON(SYSTEM, USER, 4000);
-    state.chapters = (data.chapters || []).map(ch => ({
+    showLoading('chapter-plan-container', 'Building Act 1 & Act 2A chapters…', 'Batch 1 of 2');
+    const data1 = await callClaudeJSON(SYSTEM, USER1, 1300);
+
+    showLoading('chapter-plan-container', 'Building Act 2B & Act 3 chapters…', 'Batch 2 of 2 (waiting for rate limit…)');
+    const data2 = await callClaudeJSON(SYSTEM, USER2, 1300);
+
+    const allChapters = [
+      ...(data1.chapters || []),
+      ...(data2.chapters || [])
+    ];
+
+    state.chapters = allChapters.map(ch => ({
       ...ch,
       status: 'pending',
       content: '',
@@ -1693,16 +1805,17 @@ Return a JSON object:
       approved: false
     }));
 
+    const totalWords = state.chapters.reduce((s,c) => s+(c.wordCount||2500), 0);
     document.getElementById('stat-chapters').textContent = state.chapters.length;
-    document.getElementById('stat-words-est').textContent = Math.round((data.totalWordCount||85000)/1000) + 'k';
-    document.getElementById('stat-pov').textContent = (data.povStyle||state.pov).split(' ')[0];
+    document.getElementById('stat-words-est').textContent = Math.round(totalWords/1000) + 'k';
+    document.getElementById('stat-pov').textContent = state.pov.split(' ')[0];
     document.getElementById('chapter-stats').classList.remove('hidden');
 
     renderChapterPlan();
     document.getElementById('chapter-plan-approve').classList.remove('hidden');
     document.getElementById('sidebar-status-text').textContent = `${state.genre} · ${state.chapters.length} Chapters Planned`;
   } catch(e) {
-    document.getElementById('chapter-plan-container').innerHTML = `<div class="card" style="color:var(--red)">${e.message}</div>`;
+    document.getElementById('chapter-plan-container').innerHTML = `<div class="card" style="color:var(--red);padding:16px">${e.message}</div>`;
   }
 }
 
@@ -1841,43 +1954,59 @@ async function writeChapter(i) {
   ch.status = 'writing';
   renderChapterEditor(i);
 
-  const beatContext = state.beats.map(b => `${b.name}: ${b.content}`).join('\n');
-  const prevChapters = state.chapters.slice(0, i).filter(c => c.content).map(c => `Chapter ${c.number} "${c.title}" summary: ${c.synopsis}`).join('\n');
+  const prevSummary = state.chapters.slice(Math.max(0,i-3), i)
+    .filter(c => c.content)
+    .map(c => `Ch.${c.number} "${c.title}": ${c.synopsis}`)
+    .join('\n');
 
-  const SYSTEM = `You are a ${state.genre} novelist writing at the level of the genre's bestselling authors.
-You write vivid, immersive prose with strong voice, compelling characters, sensory detail, and perfect pacing.
-You understand genre conventions deeply and subvert them when it creates the most powerful effect.
-You write full, publishable prose — not summaries, not outlines. Real scenes, real dialogue, real emotion.
-Write in ${state.pov}.`;
+  const SYSTEM = `You are a ${state.genre} novelist writing publishable, bestseller-quality prose.
+Voice: ${state.tone}. POV: ${state.pov}.
+Write vivid scenes with sensory detail, authentic dialogue, and character depth.
+Write PROSE ONLY — no headers, no meta-commentary.`;
 
-  const USER = `Write Chapter ${ch.number}: "${ch.title}" of the ${state.genre} novel "${state.novelTitle}".
+  // Segment 1: Opening ~700 words (fits in 1000 output tokens)
+  const USER1 = `Write the OPENING HALF of Chapter ${ch.number}: "${ch.title}" from "${state.novelTitle}".
 
-Synopsis: ${ch.synopsis}
-POV: ${ch.pov_character || state.pov}
+Chapter synopsis: ${ch.synopsis}
 Setting: ${ch.setting || 'as appropriate'}
-Target word count: ~${ch.wordCount || 2800} words
+${prevSummary ? `Recent story context:\n${prevSummary}` : ''}
 
-Story context:
-${prevChapters ? `Previous chapters:\n${prevChapters}\n\n` : ''}Beat context (where this fits in the overall arc):
-${beatContext.substring(0, 1000)}
+Write ~700 words. Start with a compelling hook. Establish setting, character interiority, and rising tension. End mid-scene so the second half can continue naturally. Write prose only.`;
 
-Write the complete chapter. Include:
-- A compelling opening hook
-- Rich sensory detail and setting
-- Character interiority and psychology  
-- Authentic, revealing dialogue
-- Escalating tension appropriate to this chapter's place in the arc
-- A chapter ending that compels the reader forward
+  // Segment 2: Closing ~700 words
+  const USER2 = (part1) => `Write the CLOSING HALF of Chapter ${ch.number}: "${ch.title}" from "${state.novelTitle}".
 
-Write only the chapter prose. No chapter header, no meta-commentary.`;
+Chapter synopsis: ${ch.synopsis}
+First half already written (continue from here):
+---
+${part1.slice(-600)}
+---
+
+Write ~700 words continuing directly from the above. Resolve the chapter's immediate conflict and end with a hook that pulls the reader into the next chapter. Write prose only — no "Part 2" header.`;
 
   try {
-    const content = await callClaude(SYSTEM, USER, 4000);
-    ch.content = content;
+    showLoading('chapter-editor-panel', `Writing Chapter ${ch.number} — Part 1…`, 'Opening scenes');
+    // Re-render a loading state in the panel
+    document.getElementById('chapter-editor-panel').innerHTML = `
+      <div style="font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--ink2);margin-bottom:3px">Chapter ${ch.number}: ${ch.title}</div>
+      <div class="loading-card" style="margin-top:14px">
+        <div class="quill-anim">✒</div>
+        <div class="loading-text" id="write-status">Writing Part 1 of 2…</div>
+        <div class="loading-sub">Opening scenes • ~700 words</div>
+      </div>`;
+
+    const part1 = await callClaude(SYSTEM, USER1, 1200);
+
+    const statusEl = document.getElementById('write-status');
+    if (statusEl) statusEl.textContent = 'Writing Part 2 of 2…';
+
+    const part2 = await callClaude(SYSTEM, USER2(part1), 1200);
+
+    ch.content = part1 + '\n\n' + part2;
     ch.status = 'done';
     renderWritingStudio();
     renderChapterEditor(i);
-    toast(`Chapter ${ch.number} written!`);
+    toast(`Chapter ${ch.number} written! (${countWords(ch.content).toLocaleString()} words)`);
   } catch(e) {
     ch.status = 'pending';
     renderChapterEditor(i);
@@ -1895,32 +2024,23 @@ async function rateChapter(i) {
 You have read hundreds of bestselling ${state.genre} novels and understand what separates a 6/10 from a 10/10 chapter.
 Return ONLY valid JSON. No markdown, no preamble.`;
 
-  const USER = `Rate this chapter from the ${state.genre} novel "${state.novelTitle}" against the standards of bestselling ${state.genre} fiction.
+  const USER = `Rate this chapter from the ${state.genre} novel "${state.novelTitle}" against bestselling ${state.genre} fiction standards.
 
 Chapter ${ch.number}: "${ch.title}"
 Synopsis: ${ch.synopsis}
 
-Chapter content (first 3000 chars):
-${ch.content.substring(0, 3000)}
+Chapter excerpt (first 1500 chars):
+${ch.content.substring(0, 1500)}
 
-Evaluate against bestselling ${state.genre} novels on:
-- Opening hook and immediate engagement
-- Prose quality, voice, and style  
-- Character depth and psychology
-- Dialogue authenticity and function
-- Pacing and scene structure
-- Sensory detail and immersion
-- Emotional resonance
-- Genre-specific excellence (what ${state.genre} readers demand)
-- Chapter ending effectiveness
+Rate on: hook, prose quality, character depth, dialogue, pacing, sensory detail, emotional resonance, genre excellence, chapter ending.
 
-Return JSON:
+Return JSON only:
 {
   "score": 7.5,
-  "critique": "2-3 sentence honest professional critique identifying specific strengths and the primary weaknesses",
-  "specificIssues": ["specific issue 1", "specific issue 2", "specific issue 3"],
+  "critique": "2-3 sentences identifying specific strengths and primary weaknesses",
+  "specificIssues": ["issue 1", "issue 2"],
   "strengths": ["strength 1", "strength 2"],
-  "improvementPriority": "The single most important improvement to make to raise this score"
+  "improvementPriority": "The single most important fix to raise the score"
 }`;
 
   try {
@@ -1942,31 +2062,54 @@ Return JSON:
 async function reviseChapter(i) {
   const ch = state.chapters[i];
   ch.status = 'writing';
-  renderChapterEditor(i);
 
-  const SYSTEM = `You are a master ${state.genre} author and editor doing a targeted revision pass.
-You rewrite to fix specific problems while preserving what works. Your revisions elevate prose to bestseller quality.
-Write in ${state.pov}.`;
+  document.getElementById('chapter-editor-panel').innerHTML = `
+    <div style="font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--ink2);margin-bottom:3px">Chapter ${ch.number}: ${ch.title}</div>
+    <div class="loading-card" style="margin-top:14px">
+      <div class="quill-anim">✒</div>
+      <div class="loading-text" id="write-status">Revising Part 1 of 2…</div>
+      <div class="loading-sub">Fixing: ${(ch.improvementPriority||'overall quality').substring(0,60)}</div>
+    </div>`;
 
-  const USER = `Revise this chapter from "${state.novelTitle}" to improve its quality from ${ch.score}/10 to at least 9/10 by bestseller standards.
+  const SYSTEM = `You are a master ${state.genre} author doing a targeted revision to reach 9/10+ bestseller quality.
+Fix the stated issues while preserving what works. Write publishable prose only.
+POV: ${state.pov}. Tone: ${state.tone}.`;
 
-Chapter ${ch.number}: "${ch.title}"
-Current score: ${ch.score}/10
-Primary issue to fix: ${ch.improvementPriority || 'overall polish and depth'}
-Specific issues: ${(ch.specificIssues || []).join('; ')}
-Strengths to preserve: ${(ch.strengths || []).join('; ')}
+  const half = Math.floor(ch.content.length / 2);
+  const part1orig = ch.content.substring(0, half);
+  const part2orig = ch.content.substring(half);
 
-Current chapter:
-${ch.content}
+  const REVISE1 = `Revise the FIRST HALF of this chapter to fix: "${ch.improvementPriority || 'overall prose quality'}"
+Also address: ${(ch.specificIssues||[]).slice(0,2).join('; ')}
+Preserve: ${(ch.strengths||[]).join('; ')}
 
-Rewrite the complete chapter, addressing all issues. Make it worthy of a ${state.genre} bestseller.
-Write only the revised chapter prose.`;
+Original first half:
+${part1orig.substring(0, 1200)}
+
+Rewrite it (same length, better quality). Prose only.`;
+
+  const REVISE2 = (newPart1) => `Revise the SECOND HALF of this chapter to fix: "${ch.improvementPriority || 'overall prose quality'}"
+The first half has already been revised and ends with:
+---
+${newPart1.slice(-400)}
+---
+
+Original second half to revise:
+${part2orig.substring(0, 1200)}
+
+Continue naturally from the first half's ending. End with a strong chapter hook. Prose only.`;
 
   try {
-    const newContent = await callClaude(SYSTEM, USER, 4000);
-    ch.content = newContent;
+    const rev1 = await callClaude(SYSTEM, REVISE1, 1200);
+
+    const statusEl = document.getElementById('write-status');
+    if (statusEl) statusEl.textContent = 'Revising Part 2 of 2…';
+
+    const rev2 = await callClaude(SYSTEM, REVISE2(rev1), 1200);
+
+    ch.content = rev1 + '\n\n' + rev2;
     ch.revisions = (ch.revisions || 0) + 1;
-    ch.improvements = `Revision ${ch.revisions}: Addressed "${ch.improvementPriority}" and refined overall prose quality.`;
+    ch.improvements = `Revision ${ch.revisions}: Targeted "${ch.improvementPriority}".`;
     ch.status = 'done';
     ch.score = 0;
     ch.critique = '';
@@ -2030,46 +2173,46 @@ async function buildFinalRating() {
       <div class="loading-sub">Comparing against ${state.genre} bestsellers</div>
     </div>`;
 
-  const chapterSummaries = state.chapters.map(ch =>
-    `Ch.${ch.number} "${ch.title}" (${ch.score}/10): ${ch.synopsis}`).join('\n');
+  // Trim chapter summaries to keep input under 8K tokens (~6000 chars safe)
+  const avgScore = (state.chapters.reduce((s,c) => s+(c.score||0), 0) / state.chapters.length).toFixed(1);
+  const chapterSummaries = state.chapters
+    .map(ch => `Ch.${ch.number} "${ch.title}" ${ch.score}/10`)
+    .join(' | ');
 
-  const SYSTEM = `You are one of the most respected literary critics and acquisitions editors in the publishing industry, 
-with a specialty in ${state.genre} fiction. You have evaluated thousands of novels. You are exacting, honest, and constructive.
-Return ONLY valid JSON. No markdown, no preamble.`;
+  // Pull a few synopses for context without blowing the input limit
+  const sampleSynopses = state.chapters
+    .filter((_,i) => i === 0 || i === Math.floor(state.chapters.length/2) || i === state.chapters.length-1)
+    .map(ch => `Ch.${ch.number}: ${ch.synopsis.substring(0,120)}`)
+    .join('\n');
 
-  const USER = `Evaluate the complete novel "${state.novelTitle}" (${state.genre}) against the bestselling ${state.genre} novels of the last 10 years.
+  const SYSTEM = `You are a senior acquisitions editor and literary critic specialising in ${state.genre} fiction.
+You are exacting, honest, and constructive. Return ONLY valid JSON. No markdown, no preamble.`;
 
-Premise: ${state.premise}
-Total chapters: ${state.chapters.length}
-Average chapter score: ${(state.chapters.reduce((s,c) => s+(c.score||0), 0)/state.chapters.length).toFixed(1)}/10
+  const USER = `Evaluate the novel "${state.novelTitle}" (${state.genre}) against today's ${state.genre} bestsellers.
 
-Chapter scores and synopses:
-${chapterSummaries}
+Premise: ${state.premise.substring(0, 300)}
+Chapters: ${state.chapters.length} | Avg chapter score: ${avgScore}/10
+Chapter scores: ${chapterSummaries.substring(0, 600)}
 
-Rate the complete novel as a whole on:
-- Overall narrative arc and structure (Save The Cat execution)
-- Character development across the full novel
-- Thematic coherence and depth
-- Pacing across the entire story
-- Genre conventions: excellence or subversion
-- Emotional impact and memorability
-- Commercial viability in today's ${state.genre} market
-- Comparison to landmark ${state.genre} bestsellers
+Sample synopses (opening, midpoint, finale):
+${sampleSynopses}
+
+Rate the complete novel on: narrative arc, character development, thematic depth, pacing, genre excellence, commercial viability.
 
 Return JSON:
 {
   "overallScore": 8.5,
-  "commercialVerdict": "One-sentence verdict on commercial viability",
-  "overallCritique": "3-4 sentence comprehensive critique of the novel as a whole",
+  "commercialVerdict": "One-sentence commercial viability verdict",
+  "overallCritique": "3-4 sentences comprehensive critique",
   "topStrengths": ["strength 1", "strength 2", "strength 3"],
   "topWeaknesses": ["weakness 1", "weakness 2"],
-  "comparisonNotes": "How this novel compares to the top 3 bestsellers in ${state.genre} today",
-  "publishingRecommendation": "A professional publishing recommendation",
-  "finalEnhancements": ["specific enhancement 1", "specific enhancement 2", "specific enhancement 3"]
+  "comparisonNotes": "How this compares to top ${state.genre} bestsellers today",
+  "publishingRecommendation": "Professional publishing recommendation",
+  "finalEnhancements": ["enhancement 1", "enhancement 2", "enhancement 3"]
 }`;
 
   try {
-    const data = await callClaudeJSON(SYSTEM, USER, 1500);
+    const data = await callClaudeJSON(SYSTEM, USER, 1200);
     const score = data.overallScore || 8;
     const scoreColor = score >= 9 ? 'var(--teal)' : score >= 7 ? 'var(--gold)' : 'var(--red)';
 
@@ -2111,7 +2254,7 @@ Return JSON:
         <div class="section-divider">Final Enhancements Needed</div>
         ${(data.finalEnhancements||[]).map((e,i)=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink2)">${i+1}. ${e}</div>`).join('')}
         <div class="action-row" style="margin-top:16px">
-          <button class="btn btn-primary" onclick="applyFinalEnhancements(${JSON.stringify(data.finalEnhancements||[]).replace(/"/g,'&quot;')})">✒ Apply Final Enhancements</button>
+          <button class="btn btn-primary" onclick="buildFinalRating()">↺ Re-evaluate After Revisions</button>
         </div>` : `
         <div style="text-align:center;padding:20px 0">
           <div style="font-family:var(--font-display);font-size:18px;font-style:italic;color:var(--teal)">✦ Your novel meets bestseller standards. ✦</div>
@@ -2119,12 +2262,12 @@ Return JSON:
         </div>`}
 
         <div class="section-divider">Chapter Scores</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:4px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:4px">
           ${state.chapters.map(ch => {
             const c = ch.score >= 9 ? 'var(--teal)' : ch.score >= 7 ? 'var(--gold)' : 'var(--red)';
             return `<div style="background:var(--parch);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
               <div style="font-size:11px;font-family:var(--font-mono);color:var(--ink3)">Ch.${ch.number}</div>
-              <div style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--ink2)">${ch.title}</div>
+              <div style="font-family:var(--font-display);font-size:12px;font-weight:600;color:var(--ink2);margin:2px 0">${ch.title}</div>
               <div style="font-size:20px;font-family:var(--font-display);font-weight:700;color:${c};font-style:italic">${ch.score||'—'}/10</div>
             </div>`;
           }).join('')}
@@ -2133,18 +2276,12 @@ Return JSON:
 
     document.getElementById('sidebar-status-text').textContent = `${state.genre} · ${score}/10 Overall`;
   } catch(e) {
-    document.getElementById('final-rating-container').innerHTML = `<div class="card" style="color:var(--red)">${e.message}</div>`;
+    document.getElementById('final-rating-container').innerHTML = `<div class="card" style="color:var(--red);padding:16px"><strong>Error:</strong> ${e.message}</div>`;
   }
 }
 
 async function applyFinalEnhancements(enhancements) {
-  toast('Applying final enhancements to all chapters…');
-  for (let i = 0; i < state.chapters.length; i++) {
-    if (state.chapters[i].content) {
-      state.chapters[i].improvements = `Final enhancement: ${enhancements[0] || 'Overall polish applied'}`;
-    }
-  }
-  setTimeout(() => buildFinalRating(), 1000);
+  toast('Go back to Stage 4 and revise any low-scoring chapters, then re-evaluate.');
 }
 </script>
 </body>
