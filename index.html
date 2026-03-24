@@ -290,12 +290,17 @@ function sl(ms){return new Promise(function(r){setTimeout(r,ms);});}
 function rb(s){var e=document.getElementById('ratebadge');if(!e)return;if(s>0){e.textContent='⏳ '+s+'s';e.style.display='inline-block';}else{e.textContent='';e.style.display='none';}}
 
 // API
+var _lastAsk=0;
 async function ask(sys,usr,mt){
   mt=Math.min(mt||1200,1300);
   if(!API.key){openMod();throw new Error('No API key set.');}
-  var fn=API.provider==='anthropic'?function(){return callAnt(sys,usr,mt);}:function(){return callOA(sys,usr,mt);};
-  if(API.provider==='anthropic'&&API.freeTier)return RL.schedule(fn);
-  return fn();
+  // Enforce minimum gap between calls: 2s for Groq (30/min), 13s for Anthropic free tier
+  var minGap=API.provider==='anthropic'&&API.freeTier?13000:2100;
+  var wait=Math.max(0,minGap-(Date.now()-_lastAsk));
+  if(wait>0){rb(Math.ceil(wait/1000));await sl(wait);rb(0);}
+  _lastAsk=Date.now();
+  if(API.provider==='anthropic')return callAnt(sys,usr,mt);
+  return callOA(sys,usr,mt);
 }
 async function callAnt(sys,usr,mt){
   var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':API.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:API.model,max_tokens:mt,system:sys,messages:[{role:'user',content:usr}]})});
@@ -305,10 +310,22 @@ async function callAnt(sys,usr,mt){
 }
 async function callOA(sys,usr,mt){
   var h={'Content-Type':'application/json'};if(API.key)h['Authorization']='Bearer '+API.key;
-  var r=await fetch(API.endpoint,{method:'POST',headers:h,body:JSON.stringify({model:API.model,max_tokens:mt,messages:[{role:'system',content:sys},{role:'user',content:usr}]})});
-  var d=await r.json();
-  if(d.error)throw new Error(d.error.message||JSON.stringify(d.error));
-  return d.choices&&d.choices[0]?d.choices[0].message.content:'';
+  var body=JSON.stringify({model:API.model,max_tokens:mt,messages:[{role:'system',content:sys},{role:'user',content:usr}]});
+  // Retry up to 4 times on rate limit (429) with exponential backoff
+  for(var attempt=0;attempt<4;attempt++){
+    var r=await fetch(API.endpoint,{method:'POST',headers:h,body:body});
+    var d=await r.json();
+    if(r.status===429||( d.error&&(d.error.code==='rate_limit_exceeded'||String(d.error.message).includes('Rate limit')))){
+      var wait=Math.pow(2,attempt)*3000; // 3s, 6s, 12s, 24s
+      rb(Math.ceil(wait/1000));
+      await sl(wait);
+      rb(0);
+      continue;
+    }
+    if(d.error)throw new Error(d.error.message||JSON.stringify(d.error));
+    return d.choices&&d.choices[0]?d.choices[0].message.content:'';
+  }
+  throw new Error('Rate limit persists after retries. Please wait 60 seconds and try again.');
 }
 async function askJ(sys,usr,mt){
   var t=await ask(sys,usr,mt);
@@ -571,22 +588,17 @@ async function buildChPlan(){
   }
 
   async function getChapter(num){
-    var sys='You are a novelist planning a '+ge+' novel chapter by chapter.';
+    var sys='You are a novelist planning a '+ge+' novel. Reply in exactly this format and nothing else:\nTITLE: [chapter title, max 5 words]\nSYNOPSIS: [one sentence, max 25 words, no apostrophes]';
     var hint=getBeatHint(num);
-    // Get title — plain text, max 6 words
-    var titleR=await ask(sys,
-      'Give a short evocative chapter title (max 6 words, no quotes, no punctuation) for Chapter '+num+' of '+TOTAL+
-      ' of the '+ge+' novel "'+ti+'". Premise: '+pr+(hint?' Story context: '+hint:'')+
-      '. Reply with ONLY the title words.', 40);
-    var title=titleR.replace(/^["']/,'').replace(/["':]$/,'').trim()||'Chapter '+num;
-
-    // Get synopsis — plain text, max 30 words
-    var synR=await ask(sys,
-      'Write ONE sentence (max 30 words) describing what happens in Chapter '+num+' "'+san(title)+'" of "'+ti+'".'+
-      ' Genre: '+ge+'. POV: '+pv+'. Premise: '+pr+(hint?' Context: '+hint:'')+
-      '. Reply with ONLY the sentence. No labels.', 80);
-    var syn=synR.replace(/^Chapter \d+[:.]\s*/i,'').trim()||'Chapter '+num+' events.';
-
+    var usr='Plan Chapter '+num+' of '+TOTAL+' for the '+ge+' novel titled '+ti+
+      '. Premise: '+pr+(hint?' Story context: '+hint:'')+
+      '. Reply ONLY in the TITLE/SYNOPSIS format shown. No other text.';
+    var raw=await ask(sys,usr,100);
+    // Parse the two-line response
+    var titleM=raw.match(/TITLE:\s*(.+)/i);
+    var synM=raw.match(/SYNOPSIS:\s*(.+)/i);
+    var title=(titleM?titleM[1].trim():'Chapter '+num).replace(/['"]/g,'');
+    var syn=(synM?synM[1].trim():'Events of chapter '+num+'.'). replace(/['"]/g,'');
     return {number:num,title:title,synopsis:syn,pov_character:pv,setting:'',beat:'',wordCount:2500,
       status:'pending',content:'',score:0,revisions:0,critique:'',issues:[],strengths:[],improvePriority:'',approved:false};
   }
