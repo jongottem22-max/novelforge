@@ -388,7 +388,7 @@ async function askJ(sys,usr,mt){
   var m2=fixed.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
   if(m2){try{return JSON.parse(m2[0]);}catch(e4){}}
   // Strategy 5: line-by-line sanitize — replace any value containing unescaped single quotes
-  var sanitized=c.replace(/"([^"]*?)'([^"]*?)"/g,function(match,p1,p2){return '"'+p1+p2+'"';});
+  var sanitized=c.replace(/"[^"]*"[^"]*"/g,function(m){return m.replace(/[']/g,"");});
   var m3=sanitized.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
   if(m3){try{return JSON.parse(m3[0]);}catch(e5){}}
   throw new Error('Could not parse response as JSON. Please try again. Raw: '+c.substring(0,200));
@@ -645,8 +645,8 @@ async function buildChPlan(){
     // Parse the two-line response
     var titleM=raw.match(/TITLE:\s*(.+)/i);
     var synM=raw.match(/SYNOPSIS:\s*(.+)/i);
-    var title=(titleM?titleM[1].trim():'Chapter '+num).replace(/['"]/g,'');
-    var syn=(synM?synM[1].trim():'Events of chapter '+num+'.'). replace(/['"]/g,'');
+    var title=(titleM?titleM[1].trim():"Chapter "+num).replace(/["']/g,"");
+    var syn=(synM?synM[1].trim():"Events of chapter "+num+".").replace(/["']/g,"");
     return {number:num,title:title,synopsis:syn,pov_character:pv,setting:'',beat:'',wordCount:2500,
       status:'pending',content:'',score:0,revisions:0,critique:'',issues:[],strengths:[],improvePriority:'',approved:false};
   }
@@ -792,55 +792,44 @@ async function revCh(i){
   ch.status='writing';
   renderChEditor(i);
 
-  var SYS='You are an elite '+S.genre+' author and editor. Increase this chapter quality score. Be surgical — only fix what the critique identifies. Preserve what works. Same story events and POV. Prose only.';
-  var target=ch.improvePriority||'overall prose quality';
+  var SYS='You are an elite '+S.genre+' author and editor. Your only job: increase this chapter quality score vs '+S.genre+' bestsellers. Be surgical — fix only what the critique identifies as weak. Preserve all strengths. Same plot events, same POV. Write prose only.';
+  var target=ch.improvePriority||'overall prose quality and reader engagement';
   var issues=(ch.issues||[]).slice(0,2).join('; ')||'pacing and prose depth';
   var keep=(ch.strengths||[]).slice(0,2).join('; ')||'character voice and story events';
   var history=ch.revisionHistory||[];
-  var histNote=history.length?'Previous attempts: '+history.slice(-2).join('; ')+'. Try a different approach.':'';
+  var histNote=history.length?'Previous revision attempts: '+history.slice(-2).join('; ')+'. Try a completely different approach this time.':'';
 
   try{
     var ws=document.getElementById('wstat');
-    if(ws)ws.textContent='Improving opening hook…';
+    if(ws)ws.textContent='Improving opening hook (Part 1 of 2)…';
 
     var excerpt1=ch.content.substring(0,1000);
-    var R1='REVISION: Improve this '+S.genre+' chapter opening to score higher vs bestsellers.
-'+
-      'Fix: "'+target+'"
-Issues: '+issues+'
-Preserve: '+keep+'
-'+(histNote?histNote+'
-':'')+
-      'ORIGINAL:
-'+excerpt1+'
-Rewrite this section only. Same length. Same plot events. Prose only.';
+    var R1='REVISION TASK - Improve this '+S.genre+' chapter opening to score higher vs bestsellers.\n'
+      +'Primary fix needed: '+target+'\n'
+      +'Issues to resolve: '+issues+'\n'
+      +'Must preserve: '+keep+'\n'
+      +(histNote?histNote+'\n':'')
+      +'ORIGINAL OPENING TO REVISE:\n'
+      +excerpt1+'\n'
+      +'Write an improved version of only this opening section. Same length. Same plot events. No labels or headers. Prose only.';
     var imp1=await ask(SYS,R1,1200);
 
-    if(ws)ws.textContent='Improving chapter body and ending…';
+    if(ws)ws.textContent='Improving chapter body and ending (Part 2 of 2)…';
     var midStart=Math.floor(ch.content.length*0.45);
     var excerpt2=ch.content.substring(midStart,midStart+1000);
-    var R2='REVISION: Improve this '+S.genre+' chapter section to score higher vs bestsellers.
-'+
-      'Fix: "'+target+'"
-Issues: '+issues+'
-Preserve: '+keep+'
-'+
-      'Opening now ends with:
----
-'+imp1.slice(-300)+'
----
-'+
-      'ORIGINAL SECTION:
-'+excerpt2+'
-Rewrite this section. End with a strong hook. Prose only.';
+    var R2='REVISION TASK - Improve this '+S.genre+' chapter section to score higher vs bestsellers.\n'
+      +'Primary fix needed: '+target+'\n'
+      +'Issues to resolve: '+issues+'\n'
+      +'Must preserve: '+keep+'\n'
+      +'The revised opening now ends with:\n---\n'
+      +imp1.slice(-300)+'\n---\n'
+      +'ORIGINAL SECTION TO REVISE:\n'
+      +excerpt2+'\n'
+      +'Write an improved version of only this section. End with a strong hook pulling into the next chapter. Prose only.';
     var imp2=await ask(SYS,R2,1200);
 
     var bridge=ch.content.substring(1000,midStart);
-    var newContent=imp1+(bridge?'
-
-'+bridge:'')+'
-
-'+imp2;
+    var newContent=imp1+(bridge?'\n\n'+bridge:'')+'\n\n'+imp2;
 
     if(!ch.revisionHistory)ch.revisionHistory=[];
     ch.revisionHistory.push('Rev '+(ch.revisions+1)+': targeted "'+target+'"');
@@ -851,12 +840,17 @@ Rewrite this section. End with a strong hook. Prose only.';
     ch._prevScore=prevScore;
     ch._prevCritique=prevCritique;
     ch.score=0;
-    ch.critique='Revision '+ch.revisions+' complete. Rate to compare vs previous '+prevScore+'/10.';
-    renderChList();renderChEditor(i);
-    toast('Revision '+ch.revisions+' done. Rate to compare vs '+prevScore+'/10.');
+    ch.critique='Revision '+ch.revisions+' complete. Rate to compare vs previous score of '+prevScore+'/10.';
+    renderChList();
+    renderChEditor(i);
+    toast('Revision '+ch.revisions+' done — rate to compare vs '+prevScore+'/10.');
   }catch(e){
-    ch.content=prevContent;ch.score=prevScore;ch.critique=prevCritique;ch.status='done';
-    renderChEditor(i);toast('Revision error — previous version restored. '+e.message);
+    ch.content=prevContent;
+    ch.score=prevScore;
+    ch.critique=prevCritique;
+    ch.status='done';
+    renderChEditor(i);
+    toast('Revision error — previous version restored. '+e.message);
   }
 }
 function approveCh(i){
