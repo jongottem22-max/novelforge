@@ -287,45 +287,87 @@ var RL={queue:[],lastCall:0,minGap:13000,running:false,
   schedule:function(fn){var self=this;return new Promise(function(res,rej){self.queue.push({fn:fn,res:res,rej:rej});if(!self.running)self.flush();});},
   flush:async function(){this.running=true;while(this.queue.length>0){var wait=Math.max(0,this.minGap-(Date.now()-this.lastCall));if(wait>0){rb(Math.ceil(wait/1000));await sl(wait);rb(0);}var j=this.queue.shift();this.lastCall=Date.now();try{j.res(await j.fn());}catch(e){j.rej(e);}}this.running=false;}};
 function sl(ms){return new Promise(function(r){setTimeout(r,ms);});}
-function rb(s){var e=document.getElementById('ratebadge');if(!e)return;if(s>0){e.textContent='⏳ '+s+'s';e.style.display='inline-block';}else{e.textContent='';e.style.display='none';}}
+function rb(s){
+  var e=document.getElementById('ratebadge');if(!e)return;
+  if(s>0){
+    e.textContent='⏳ Rate limit: waiting '+s+'s…';
+    e.style.display='inline-block';
+    // Also update any active loading subtitle
+    var sub=document.querySelector('.lsub');
+    if(sub)sub.textContent='Waiting '+s+'s for rate limit window…';
+  }else{
+    e.textContent='';
+    e.style.display='none';
+    var sub=document.querySelector('.lsub');
+    if(sub&&sub.textContent.includes('rate limit'))sub.textContent='Processing…';
+  }
+}
 
-// API
-var _lastAsk=0;
+// API — with sliding window rate limiter
+// Tracks request timestamps and pauses automatically before hitting limits
+var _reqLog=[]; // timestamps of recent requests
+
+function isRateLimited(){
+  var now=Date.now();
+  var window=API.provider==='anthropic'&&API.freeTier?60000:62000; // 62s window for Groq safety
+  var limit=API.provider==='anthropic'&&API.freeTier?5:28; // stay 2 under Groq's 30 limit
+  _reqLog=_reqLog.filter(function(t){return now-t<window;});
+  return _reqLog.length>=limit;
+}
+
+async function waitForSlot(){
+  while(isRateLimited()){
+    var now=Date.now();
+    var window=API.provider==='anthropic'&&API.freeTier?60000:62000;
+    var oldest=_reqLog[0];
+    var wait=Math.max(1000,(oldest+window)-now+500); // wait until oldest drops out
+    rb(Math.ceil(wait/1000));
+    await sl(Math.min(wait,3000)); // check every 3s max
+    rb(0);
+  }
+  // Also enforce minimum gap between individual calls
+  var minGap=API.provider==='anthropic'&&API.freeTier?13000:2200;
+  var sinceLastReq=Date.now()-(_reqLog[_reqLog.length-1]||0);
+  if(sinceLastReq<minGap){
+    var gap=minGap-sinceLastReq;
+    rb(Math.ceil(gap/1000));
+    await sl(gap);
+    rb(0);
+  }
+}
+
 async function ask(sys,usr,mt){
   mt=Math.min(mt||1200,1300);
   if(!API.key){openMod();throw new Error('No API key set.');}
-  // Enforce minimum gap between calls: 2s for Groq (30/min), 13s for Anthropic free tier
-  var minGap=API.provider==='anthropic'&&API.freeTier?13000:2100;
-  var wait=Math.max(0,minGap-(Date.now()-_lastAsk));
-  if(wait>0){rb(Math.ceil(wait/1000));await sl(wait);rb(0);}
-  _lastAsk=Date.now();
+  await waitForSlot();
+  _reqLog.push(Date.now());
   if(API.provider==='anthropic')return callAnt(sys,usr,mt);
   return callOA(sys,usr,mt);
 }
+
 async function callAnt(sys,usr,mt){
   var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':API.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:API.model,max_tokens:mt,system:sys,messages:[{role:'user',content:usr}]})});
   var d=await r.json();
-  if(d.error){if(d.error.type==='authentication_error'){openMod();throw new Error('Invalid API key.');}if(r.status===429)throw new Error('Rate limit hit — wait 60s.');throw new Error(d.error.message||'Anthropic error');}
+  if(d.error){if(d.error.type==='authentication_error'){openMod();throw new Error('Invalid API key.');}if(r.status===429){_reqLog.pop();await sl(15000);return ask(sys,usr,mt);}throw new Error(d.error.message||'Anthropic error');}
   return d.content&&d.content[0]?d.content[0].text:'';
 }
+
 async function callOA(sys,usr,mt){
   var h={'Content-Type':'application/json'};if(API.key)h['Authorization']='Bearer '+API.key;
   var body=JSON.stringify({model:API.model,max_tokens:mt,messages:[{role:'system',content:sys},{role:'user',content:usr}]});
-  // Retry up to 4 times on rate limit (429) with exponential backoff
-  for(var attempt=0;attempt<4;attempt++){
-    var r=await fetch(API.endpoint,{method:'POST',headers:h,body:body});
-    var d=await r.json();
-    if(r.status===429||( d.error&&(d.error.code==='rate_limit_exceeded'||String(d.error.message).includes('Rate limit')))){
-      var wait=Math.pow(2,attempt)*3000; // 3s, 6s, 12s, 24s
-      rb(Math.ceil(wait/1000));
-      await sl(wait);
-      rb(0);
-      continue;
-    }
-    if(d.error)throw new Error(d.error.message||JSON.stringify(d.error));
-    return d.choices&&d.choices[0]?d.choices[0].message.content:'';
+  var r=await fetch(API.endpoint,{method:'POST',headers:h,body:body});
+  var d=await r.json();
+  if(r.status===429||(d.error&&(String(d.error.message||'').toLowerCase().includes('rate')))){
+    // Remove the request we just counted, wait for window, retry
+    _reqLog.pop();
+    var wait=62000; // wait a full minute to guarantee reset
+    rb(Math.ceil(wait/1000));
+    await sl(wait);
+    rb(0);
+    return ask(sys,usr,mt); // recurse — will go through waitForSlot again
   }
-  throw new Error('Rate limit persists after retries. Please wait 60 seconds and try again.');
+  if(d.error)throw new Error(d.error.message||JSON.stringify(d.error));
+  return d.choices&&d.choices[0]?d.choices[0].message.content:'';
 }
 async function askJ(sys,usr,mt){
   var t=await ask(sys,usr,mt);
@@ -556,7 +598,13 @@ function renderBeats(){
     if(ta)ta.addEventListener('change',function(){var beat=S.beats.find(function(x){return x.id===b.id;});if(beat)beat.content=ta.value;});
   });
 }
-function approveBeats(){advance(2);buildChPlan();}
+function approveBeats(){
+  advance(2);
+  // Show the chapter plan loading state immediately
+  ld('chPlanCont','Checking rate limit window before starting…','The app will wait if needed');
+  // Small delay to let the rate limiter log settle, then start
+  setTimeout(function(){buildChPlan();},500);
+}
 
 // Stage 2 — chapter plan using plain-text per-chapter (no JSON truncation possible)
 async function buildChPlan(){
