@@ -468,24 +468,57 @@ async function analyzePremise(){
 }
 function approvePremise(){advance(1);buildBeats();}
 
-// Stage 1
+// Stage 1 — beat sheet using plain-text responses (no JSON = no truncation errors)
 async function buildBeats(){
-  ld('beatCont','Crafting your beat sheet…','Building Act 1 & 2A');
-  var SYS='You are a Save The Cat story structure expert. Return ONLY a valid JSON object. No markdown, no text outside the JSON. Use only ASCII characters in all string values.';
+  var pr=san(S.premise);
+  var ti=san(S.novelTitle);
+  var ge=S.genre;
+  // One call per beat group. Plain text response — just a sentence. No JSON parsing needed.
+  async function getBeat(beatName,beatDesc,extra){
+    var sys='You are a Save The Cat story structure expert writing for a '+ge+' novel.';
+    var usr='Write ONE sentence (max 25 words) describing the "'+beatName+'" beat for this novel.'+
+      '\nNovel: "'+ti+'"\nPremise: '+pr+
+      (extra?'\nContext: '+extra:'')+
+      '\nBeat description: '+beatDesc+
+      '\nRespond with ONLY the one sentence. No labels, no punctuation at start, no JSON.';
+    var t=await ask(sys,usr,120);
+    return t.replace(/^["\[{]|["\]}]$/g,'').trim();
+  }
+
+  var beatGroups=[
+    {id:'opening', name:'Opening Image',        desc:'Snapshot of the hero world before the journey'},
+    {id:'theme',   name:'Theme Stated',          desc:'The thematic argument spoken aloud'},
+    {id:'setup',   name:'Set-Up',                desc:'Meet hero, world, and what is broken in their life'},
+    {id:'catalyst',name:'Catalyst',              desc:'Inciting incident that upends the hero world'},
+    {id:'debate',  name:'Debate',                desc:'Hero resists the call — what if they refuse'},
+    {id:'break1',  name:'Break into Two',        desc:'Hero commits — story world changes'},
+    {id:'bsw',     name:'B Story',               desc:'Love story or friendship that carries the theme'},
+    {id:'fun',     name:'Fun and Games',         desc:'Hero explores new world — promise of the premise'},
+    {id:'midpoint',name:'Midpoint',              desc:'False victory or defeat — stakes rise to life or death'},
+    {id:'badguys', name:'Bad Guys Close In',     desc:'Opposition mounts — hero team fractures'},
+    {id:'allislost',name:'All Is Lost',          desc:'Worst thing happens — whiff of death'},
+    {id:'darknight',name:'Dark Night of the Soul',desc:'Hero lowest point before the rise'},
+    {id:'break3',  name:'Break into Three',      desc:'Hero finds solution — A story meets B story'},
+    {id:'finale',  name:'Finale',                desc:'Hero storms the castle and earns transformation'},
+    {id:'finalimage',name:'Final Image',         desc:'Mirror of opening image — world has changed'}
+  ];
+
   try{
-    var UA='Create Save The Cat beats for Act 1 (opening through break1) for this '+S.genre+' novel "'+san(S.novelTitle)+'".\nPremise: '+san(S.premise)+'\nReturn ONLY this JSON with exactly these 6 beat IDs. One sentence per content field. No apostrophes:\n{"beats":[{"id":"opening","content":"one sentence"},{"id":"theme","content":"one sentence"},{"id":"setup","content":"one sentence"},{"id":"catalyst","content":"one sentence"},{"id":"debate","content":"one sentence"},{"id":"break1","content":"one sentence"}]}';
-    var dA=await askJ(SYS,UA,700);
-    ld('beatCont','Building Act 2A beats…','Batch 2 of 3');
-    var UA2='Create Save The Cat beats for Act 2A (bsw, fun, midpoint) for this '+S.genre+' novel "'+san(S.novelTitle)+'".\nPremise: '+san(S.premise)+'\nReturn ONLY this JSON. One sentence per content field. No apostrophes:\n{"beats":[{"id":"bsw","content":"one sentence"},{"id":"fun","content":"one sentence"},{"id":"midpoint","content":"one sentence"}]}';
-    var dA2=await askJ(SYS,UA2,400);
-    ld('beatCont','Building Act 2B &amp; 3 beats…','Second batch');
-    var UB='Create Save The Cat beats for Act 2B and Act 3 (badguys through finalimage) for this '+S.genre+' novel "'+san(S.novelTitle)+'".\nPremise: '+san(S.premise)+'\nReturn ONLY this JSON. One sentence per content field. No apostrophes:\n{"beats":[{"id":"badguys","content":"one sentence"},{"id":"allislost","content":"one sentence"},{"id":"darknight","content":"one sentence"},{"id":"break3","content":"one sentence"},{"id":"finale","content":"one sentence"},{"id":"finalimage","content":"one sentence"}]}';
-    var dB=await askJ(SYS,UB,700);
-    var map={};(dA.beats||[]).concat((dA2&&dA2.beats)||[]).concat(dB.beats||[]).forEach(function(b){map[b.id]=b.content;});
-    S.beats=STC.map(function(b){return Object.assign({},b,{content:map[b.id]||'[Click to add: '+b.name+']'});});
+    S.beats=STC.map(function(b){return Object.assign({},b,{content:'Generating…'});});
+    renderBeats();
+
+    for(var i=0;i<beatGroups.length;i++){
+      var bg=beatGroups[i];
+      ld('beatCont','Writing beat '+(i+1)+' of '+beatGroups.length+': '+bg.name+'…','Please wait');
+      // Still render partial results so user sees progress
+      var content=await getBeat(bg.name,bg.desc,'');
+      var beat=S.beats.find(function(b){return b.id===bg.id;});
+      if(beat){beat.content=content||'[Click to edit: '+bg.name+']';}
+    }
+
     renderBeats();
     document.getElementById('beatApproveWrap').classList.remove('hidden');
-    document.getElementById('novstat').textContent=S.genre+' · Beat Sheet Ready';
+    document.getElementById('novstat').textContent=ge+' · Beat Sheet Ready';
   }catch(e){er('beatCont',e.message);}
 }
 function renderBeats(){
@@ -508,62 +541,72 @@ function renderBeats(){
 }
 function approveBeats(){advance(2);buildChPlan();}
 
-// Stage 2
+// Stage 2 — chapter plan using plain-text per-chapter (no JSON truncation possible)
 async function buildChPlan(){
-  var SYS='You are a novelist and story planner. Return ONLY a valid JSON object. No markdown, no explanation, no text outside the JSON braces. Use only ASCII characters — no apostrophes, no special punctuation in string values.';
   var pr=san(S.premise);
-  var title=S.novelTitle.replace(/'/g,'');
-  var genre=S.genre;
-  var pov=S.pov;
+  var ti=san(S.novelTitle);
+  var ge=S.genre;
+  var pv=S.pov;
+  var TOTAL=24; // total chapters
 
-  // Helper: build a mini-batch prompt asking for N chapters starting at startNum
-  function batchPrompt(startNum,count,beatHint){
-    var endNum=startNum+count-1;
-    return 'For the '+genre+' novel "'+title+'", write chapter outlines for chapters '+startNum+' to '+endNum+'.'+
-      '\nPremise: '+pr+
-      '\nPOV: '+pov+
-      (beatHint ? '\nStory context: '+beatHint : '')+
-      '\nReturn ONLY this JSON with exactly '+count+' chapters:'+
-      '\n{"chapters":[{"number":'+startNum+',"title":"short title","synopsis":"One sentence only. No apostrophes.","pov_character":"name","setting":"place","wordCount":2500}]}'+
-      '\nEach synopsis must be one sentence only. No apostrophes anywhere. Return only the JSON.';
+  // Map beat IDs to chapter ranges
+  var beatMap=[
+    {range:[1,3],   beatId:'setup'},
+    {range:[4,5],   beatId:'catalyst'},
+    {range:[6,8],   beatId:'fun'},
+    {range:[9,12],  beatId:'midpoint'},
+    {range:[13,16], beatId:'badguys'},
+    {range:[17,19], beatId:'allislost'},
+    {range:[20,22], beatId:'break3'},
+    {range:[23,24], beatId:'finale'}
+  ];
+  function getBeatHint(n){
+    for(var i=0;i<beatMap.length;i++){
+      if(n>=beatMap[i].range[0]&&n<=beatMap[i].range[1]){
+        var b=S.beats.find(function(x){return x.id===beatMap[i].beatId;});
+        return b?san(b.content.substring(0,80)):'';
+      }
+    }
+    return '';
   }
 
-  var beatA=S.beats.find(function(b){return b.id==='opening';})||{};
-  var beatM=S.beats.find(function(b){return b.id==='midpoint';})||{};
-  var beatF=S.beats.find(function(b){return b.id==='finale';})||{};
-  var hintA=san((beatA.content||'').substring(0,120));
-  var hintM=san((beatM.content||'').substring(0,120));
-  var hintF=san((beatF.content||'').substring(0,120));
+  async function getChapter(num){
+    var sys='You are a novelist planning a '+ge+' novel chapter by chapter.';
+    var hint=getBeatHint(num);
+    // Get title — plain text, max 6 words
+    var titleR=await ask(sys,
+      'Give a short evocative chapter title (max 6 words, no quotes, no punctuation) for Chapter '+num+' of '+TOTAL+
+      ' of the '+ge+' novel "'+ti+'". Premise: '+pr+(hint?' Story context: '+hint:'')+
+      '. Reply with ONLY the title words.', 40);
+    var title=titleR.replace(/^["']/,'').replace(/["':]$/,'').trim()||'Chapter '+num;
+
+    // Get synopsis — plain text, max 30 words
+    var synR=await ask(sys,
+      'Write ONE sentence (max 30 words) describing what happens in Chapter '+num+' "'+san(title)+'" of "'+ti+'".'+
+      ' Genre: '+ge+'. POV: '+pv+'. Premise: '+pr+(hint?' Context: '+hint:'')+
+      '. Reply with ONLY the sentence. No labels.', 80);
+    var syn=synR.replace(/^Chapter \d+[:.]\s*/i,'').trim()||'Chapter '+num+' events.';
+
+    return {number:num,title:title,synopsis:syn,pov_character:pv,setting:'',beat:'',wordCount:2500,
+      status:'pending',content:'',score:0,revisions:0,critique:'',issues:[],strengths:[],improvePriority:'',approved:false};
+  }
 
   try{
-    // 4 small batches of 6-7 chapters — each fits comfortably in 800 tokens
-    ld('chPlanCont','Planning chapters 1-6…','Batch 1 of 4');
-    var r1=await askJ(SYS,batchPrompt(1,6,'Act 1: '+hintA),800);
-
-    ld('chPlanCont','Planning chapters 7-13…','Batch 2 of 4');
-    var r2=await askJ(SYS,batchPrompt(7,7,'Approaching midpoint: '+hintM),800);
-
-    ld('chPlanCont','Planning chapters 14-19…','Batch 3 of 4');
-    var r3=await askJ(SYS,batchPrompt(14,6,'After midpoint, stakes rising'),800);
-
-    ld('chPlanCont','Planning chapters 20-26…','Batch 4 of 4');
-    var r4=await askJ(SYS,batchPrompt(20,7,'Finale: '+hintF),800);
-
-    var all=(r1.chapters||[]).concat(r2.chapters||[],r3.chapters||[],r4.chapters||[]);
-    if(all.length===0)throw new Error('No chapters returned from API. Please try again.');
-
-    S.chapters=all.map(function(ch){
-      return Object.assign({},ch,{status:'pending',content:'',score:0,revisions:0,critique:'',issues:[],strengths:[],improvePriority:'',approved:false});
-    });
+    S.chapters=[];
+    for(var n=1;n<=TOTAL;n++){
+      ld('chPlanCont','Planning Chapter '+n+' of '+TOTAL+'…','Building your novel structure');
+      var ch=await getChapter(n);
+      S.chapters.push(ch);
+    }
 
     var tw=S.chapters.reduce(function(s,ch){return s+(ch.wordCount||2500);},0);
     document.getElementById('stCh').textContent=S.chapters.length;
     document.getElementById('stWc').textContent=Math.round(tw/1000)+'k';
-    document.getElementById('stPov').textContent=pov.split(' ')[0];
+    document.getElementById('stPov').textContent=pv.split(' ')[0];
     document.getElementById('chStats').classList.remove('hidden');
     renderChPlan();
     document.getElementById('chPlanApprove').classList.remove('hidden');
-    document.getElementById('novstat').textContent=genre+' · '+S.chapters.length+' Chapters Planned';
+    document.getElementById('novstat').textContent=ge+' · '+S.chapters.length+' Chapters Planned';
   }catch(e){er('chPlanCont',e.message);}
 }
 function renderChPlan(){
