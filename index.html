@@ -337,7 +337,7 @@ async function waitForSlot(){
 }
 
 async function ask(sys,usr,mt){
-  mt=Math.min(mt||1200,1300);
+  mt=Math.min(mt||1200,1500);
   if(!API.key){openMod();throw new Error('No API key set.');}
   await waitForSlot();
   _reqLog.push(Date.now());
@@ -504,11 +504,25 @@ async function analyzePremise(){
   btn.disabled=true;btn.textContent='✒ Analyzing…';
   document.getElementById('premResult').classList.remove('hidden');
   ld('genreResult','Reading your premise…','Detecting genre, tone, and themes');
-  var SYS='You are a master literary agent and genre expert. Return ONLY a valid JSON object. No markdown fences, no explanation, no text before or after the JSON. Use only ASCII characters inside string values — no curly quotes, no apostrophes in contractions, no special characters.';
-  var USR='Analyze this premise and return JSON with these exact fields. Use only ASCII characters in all string values. Return ONLY the JSON object, nothing else.\n\n{"genre":"...","subgenre":"...","tone":"...","themes":["..."],"novelTitle":"...","pov":"...","targetWordCount":85000,"estimatedChapters":26,"comps":["...","..."],"genreAnalysis":"2-3 sentences","authorNotes":"2-3 sentences","hooks":["...","...","..."]}\n\nPremise: '+san(prem);
+  // Call 1: compact JSON — only short fields, guaranteed to fit in 400 tokens
+  var SYS1='You are a literary agent. Return ONLY a valid JSON object. ASCII characters only. No markdown. No text outside the JSON braces.';
+  var USR1='Return JSON for this '+san(prem.substring(0,200))+' premise. Fields must be short — one word or phrase each.\n'
+    +'{"genre":"one word","subgenre":"two words","tone":"two words","themes":["t1","t2","t3"],'
+    +'"novelTitle":"four words max","pov":"Third Person Limited","targetWordCount":85000,"estimatedChapters":26,'
+    +'"comps":["Title by Author","Title by Author"]}\n'
+    +'Return ONLY the JSON. No explanation.';
   try{
-    var d=await askJ(SYS,USR,1200);
-    S.genre=d.genre||'Fiction';S.subgenre=d.subgenre||'';S.tone=d.tone||'';S.themes=d.themes||[];S.novelTitle=d.novelTitle||'Untitled Novel';S.pov=d.pov||'Third Person Limited';S.wordCountEst=d.targetWordCount||85000;
+    var d=await askJ(SYS1,USR1,400);
+    S.genre=d.genre||'Fiction';S.subgenre=d.subgenre||'';S.tone=d.tone||'';S.themes=d.themes||[];
+    S.novelTitle=d.novelTitle||'Untitled Novel';S.pov=d.pov||'Third Person Limited';S.wordCountEst=d.targetWordCount||85000;
+
+    // Call 2: plain text for the longer narrative fields — no JSON, no truncation risk
+    var SYS2='You are a literary agent and author. Reply in plain text. Be concise. ASCII only.';
+    var ga=await ask(SYS2,'Write 2 sentences: why this '+S.genre+' premise has strong commercial potential. Premise: '+san(prem.substring(0,200)),120);
+    var an=await ask(SYS2,'Write 2 sentences of craft advice for writing this '+S.genre+' novel. Premise: '+san(prem.substring(0,200)),120);
+    var h1=await ask(SYS2,'Write one story hook sentence (what will keep readers turning pages) for: '+san(prem.substring(0,200)),60);
+    var h2=await ask(SYS2,'Write one emotional hook sentence (what emotional experience awaits readers) for: '+san(prem.substring(0,200)),60);
+    d.genreAnalysis=ga.trim();d.authorNotes=an.trim();d.hooks=[h1.trim(),h2.trim()];
     var h='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px"><span class="badge bg">'+S.genre+'</span><span class="badge bc">'+S.subgenre+'</span></div>'
       +'<div style="font-family:var(--fd);font-size:22px;font-weight:700;font-style:italic;color:var(--ink2);margin-bottom:6px">"'+S.novelTitle+'"</div>'
       +'<div style="font-size:12px;font-family:var(--fm);color:var(--ink3);margin-bottom:16px">'+S.pov+' · ~'+(S.wordCountEst/1000|0)+'k words · ~'+(d.estimatedChapters||26)+' chapters</div>';
