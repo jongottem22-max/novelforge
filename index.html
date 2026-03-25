@@ -710,7 +710,7 @@ function renderChEditor(i){
   if(ch.content){
     h+='<div class="tabbar"><button class="tbtn active" id="tProse">Prose</button><button class="tbtn" id="tCrit">Critique &amp; Score</button></div>'
       +'<div id="pProse"><div class="prose" contenteditable="true" id="pCont">'+ch.content+'</div><div style="font-family:var(--fm);font-size:11px;color:var(--ink3);margin-top:6px">'+wc(ch.content).toLocaleString()+' words</div></div>'
-      +'<div id="pCrit" class="hidden"><div style="display:flex;align-items:center;gap:16px;margin-bottom:14px"><div><div class="score '+(sc>=9?'hi':'')+'" style="color:'+col+'">'+( sc||'—')+'</div><div style="font-family:var(--fm);font-size:10px;color:var(--ink3);text-transform:uppercase">/10 vs bestsellers</div></div><div style="flex:1"><div class="rbar"><div class="rfill" style="width:'+(sc*10)+'%"></div></div><div style="font-size:11px;color:var(--ink3);margin-top:3px">'+(ch.revisions||0)+' revision(s)</div></div></div>'+(ch.critique?'<div class="crit"><h4>Editor\'s Critique</h4><p>'+ch.critique+'</p></div>':'')+'</div>';
+      +'<div id="pCrit" class="hidden"><div style="display:flex;align-items:center;gap:16px;margin-bottom:14px"><div><div class="score '+(sc>=9?'hi':'')+'" style="color:'+col+'">'+( sc||'—')+'</div><div style="font-family:var(--fm);font-size:10px;color:var(--ink3);text-transform:uppercase">/10 vs bestsellers</div></div><div style="flex:1"><div class="rbar"><div class="rfill" style="width:'+(sc*10)+'%"></div></div><div style="font-size:11px;color:var(--ink3);margin-top:3px">'+(ch.revisions||0)+' revision(s)</div></div></div>'+(ch.critique?'<div class="crit"><h4>Summary Critique</h4><p>'+ch.critique+'</p></div>':'')+(ch.issues&&ch.issues.length?'<div class="crit" style="margin-top:8px"><h4>All Issues Identified ('+ch.issues.length+')</h4><ul style="padding-left:18px;font-size:13px;color:var(--ink2);line-height:1.8">'+ch.issues.map(function(x){return '<li>'+x+'</li>';}).join('')+'</ul></div>':'')+(ch.improvePriority?'<div class="crit t" style="margin-top:8px"><h4>Revision Plan</h4><p style="font-size:13px;color:var(--ink2)">'+ch.improvePriority+'</p></div>':'')+(ch._critiqueDoc?'<div style="margin-top:10px"><details><summary style="cursor:pointer;font-family:var(--fm);font-size:12px;color:var(--ink3);padding:8px 0">&#9656; Full 5-Hat Professional Critique</summary><div style="background:var(--parch);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:8px;font-size:13px;color:var(--ink2);line-height:1.7;white-space:pre-wrap;max-height:400px;overflow-y:auto">'+ch._critiqueDoc+'</div></details></div>':'')+'</div>';
     h+='<div class="arow" style="margin-top:14px">';
     if(!ch.approved)h+='<button class="btn btn-g btn-sm" id="bRateCh">★ Rate vs Bestsellers</button>';
     if(sc>0&&sc<9&&!ch.approved)h+='<button class="btn btn-p btn-sm" id="bRevCh">✒ Revise to 9/10</button>';
@@ -744,107 +744,200 @@ async function writeCh(i){
   }catch(e){ch.status='pending';renderChList();renderChEditor(i);toast('Error: '+e.message);}
 }
 async function rateCh(i){
-  var ch=S.chapters[i];var btn=document.getElementById('bRateCh');if(btn){btn.disabled=true;btn.textContent='★ Rating…';}
-  var SYS='You are a rigorous literary critic expert in '+S.genre+'. Return ONLY a valid JSON object. No markdown, no text outside the JSON. Use only ASCII characters in all string values.';
-  var USR='Rate Chapter '+ch.number+' "'+ch.title+'" from "'+S.novelTitle+'" against '+S.genre+' bestsellers.\nSynopsis: '+ch.synopsis+'\nExcerpt:\n'+ch.content.substring(0,1200)+'\nReturn JSON: {"score":7.5,"critique":"2-3 sentences","specificIssues":["i1","i2"],"strengths":["s1"],"improvementPriority":"main fix"}';
-  try{
-    var d=await askJ(SYS,USR,800);
-    var newScore=d.score||7;
+  var ch=S.chapters[i];
+  var btn=document.getElementById('bRateCh');
+  if(btn){btn.disabled=true;btn.textContent='★ Rating…';}
 
-    // Auto-rollback protection: if this revision scored LOWER than the previous best,
-    // restore the previous version and report what happened
+  var SYS='You are a rigorous literary critic and acquisitions editor specializing in '+S.genre+' fiction. '
+    +'You have read hundreds of '+S.genre+' bestsellers and know precisely what separates a 6 from a 9. '
+    +'Return ONLY a valid JSON object. No markdown. ASCII characters only in all string values.';
+
+  var excerpt=ch.content.substring(0,1400);
+  var USR='Rate this '+S.genre+' chapter against published '+S.genre+' bestsellers. '
+    +'Be a demanding professional critic — do not inflate scores. '
+    +'Score 9-10 means it matches the best published '+S.genre+' novels. '
+    +'Score 7-8 means competent but clearly below published quality. '
+    +'Score 5-6 means significant issues. Be honest and specific.\n\n'
+    +'Novel: "'+S.novelTitle+'" | Chapter '+ch.number+': "'+ch.title+'"\n'
+    +'Synopsis: '+ch.synopsis+'\n'
+    +'Chapter excerpt (first 1400 chars):\n'+excerpt+'\n\n'
+    +'Return JSON with these exact fields:\n'
+    +'{"score":7.5,'
+    +'"critique":"3-4 honest sentences covering what works and what falls short vs published '+S.genre+' novels",'
+    +'"writerIssues":["issue from writer perspective: voice pacing structure"],'
+    +'"editorIssues":["issue from editor perspective: clarity flow consistency"],'
+    +'"betaIssues":["issue from reader perspective: engagement confusion boredom"],'
+    +'"coachIssues":["issue from craft perspective: scene goals stakes tension"],'
+    +'"criticIssues":["issue from critic perspective: vs genre conventions and bestsellers"],'
+    +'"strengths":["what is working well — be specific"],'
+    +'"nextRevisionPlan":"Specific actionable plan: exactly what to change in the next revision to guarantee a higher score"}';
+
+  try{
+    var d=await askJ(SYS,USR,900);
+    var newScore=parseFloat(d.score)||7;
+
+    // Aggregate all issues into one master list for the revision
+    var allIssues=[].concat(
+      d.writerIssues||[],
+      d.editorIssues||[],
+      d.betaIssues||[],
+      d.coachIssues||[],
+      d.criticIssues||[]
+    ).filter(Boolean).slice(0,8);
+
+    // Auto-rollback: if revised version scored lower, restore previous best
     if(ch._prevContent && ch._prevScore && newScore < ch._prevScore){
-      toast('Rev scored '+newScore+'/10 vs previous '+ch._prevScore+'/10 — keeping better version.');
-      // Restore the previous better version
+      toast('Rev '+ch.revisions+' scored '+newScore+'/10 — below previous '+ch._prevScore+'/10. Keeping best version.');
       ch.content=ch._prevContent;
       ch.score=ch._prevScore;
-      ch.critique=ch._prevCritique||'';
-      // Update issues/priority for the NEXT revision attempt based on new critique
-      ch.issues=d.specificIssues||ch.issues||[];
+      // But UPDATE the critique with fresh diagnostic detail for next attempt
+      ch.issues=allIssues;
       ch.strengths=d.strengths||ch.strengths||[];
-      ch.improvePriority=d.improvementPriority||ch.improvePriority||'';
-      // Add what this revision tried (and failed) to the history so next attempt is different
+      ch.improvePriority=d.nextRevisionPlan||d.critique||'';
       if(!ch.revisionHistory)ch.revisionHistory=[];
-      ch.revisionHistory.push('FAILED attempt targeting "'+ch.improvePriority+'"');
+      ch.revisionHistory.push('Rev '+ch.revisions+' scored '+newScore+' — rolled back. Plan: '+(d.nextRevisionPlan||'').substring(0,80));
       ch._prevContent=null;ch._prevScore=null;ch._prevCritique=null;
-      ch.critique='Previous version restored (scored '+ch._prevScore+'/10 vs revised '+newScore+'/10). Next revision will try a different approach. Issues identified: '+(d.specificIssues||[]).join('; ');
+      ch.critique='ROLLED BACK to '+ch._prevScore+'/10 (revision scored '+newScore+'/10). '
+        +'Fresh critique applied for next attempt. Next revision plan: '+(d.nextRevisionPlan||d.critique||'');
     } else {
-      // New version is better or equal — keep it
+      var improved=ch._prevScore&&newScore>ch._prevScore;
       ch.score=newScore;
       ch.critique=d.critique||'';
-      ch.issues=d.specificIssues||[];
+      ch.issues=allIssues;
       ch.strengths=d.strengths||[];
-      ch.improvePriority=d.improvementPriority||'';
+      ch.improvePriority=d.nextRevisionPlan||'';
       ch._prevContent=null;ch._prevScore=null;ch._prevCritique=null;
-      if(ch.revisions>0)toast('Chapter '+ch.number+' improved to '+newScore+'/10! ↑ from previous.');
+      if(improved)toast('Chapter '+ch.number+' improved: '+newScore+'/10 (was '+ch._prevScore+') ↑');
       else toast('Chapter '+ch.number+' scored: '+newScore+'/10');
     }
 
     renderChList();renderChEditor(i);
     var tc=document.getElementById('tCrit');if(tc)tc.click();
-  }catch(e){toast('Rating error: '+e.message);if(btn){btn.disabled=false;btn.textContent='★ Rate vs Bestsellers';}}
+  }catch(e){
+    toast('Rating error: '+e.message);
+    if(btn){btn.disabled=false;btn.textContent='★ Rate vs Bestsellers';}
+  }
 }
 async function revCh(i){
   var ch=S.chapters[i];
   var prevContent=ch.content;
   var prevScore=ch.score||0;
   var prevCritique=ch.critique||'';
+
   ch.status='writing';
   renderChEditor(i);
 
-  var SYS='You are an elite '+S.genre+' author and editor. Your only job: increase this chapter quality score vs '+S.genre+' bestsellers. Be surgical — fix only what the critique identifies as weak. Preserve all strengths. Same plot events, same POV. Write prose only.';
-  var target=ch.improvePriority||'overall prose quality and reader engagement';
-  var issues=(ch.issues||[]).slice(0,2).join('; ')||'pacing and prose depth';
-  var keep=(ch.strengths||[]).slice(0,2).join('; ')||'character voice and story events';
-  var history=ch.revisionHistory||[];
-  var histNote=history.length?'Previous revision attempts: '+history.slice(-2).join('; ')+'. Try a completely different approach this time.':'';
+  var ws=document.getElementById('wstat');
+
+  // ── PHASE 1: Deep multi-hat professional critique ─────────────────────────
+  // This is the diagnostic step. We get specific, actionable enhancements
+  // under 5 professional lenses before touching a single word of the chapter.
+  if(ws)ws.textContent='Phase 1 of 3: Professional critique under 5 lenses…';
+
+  var critiqueDoc='';
+  var revisionPlan='';
 
   try{
-    var ws=document.getElementById('wstat');
-    if(ws)ws.textContent='Improving opening hook (Part 1 of 2)…';
+    var CSYS='You are simultaneously a professional writer, author, developmental editor, '
+      +'beta-reader, book coach, and novel critic with 20 years of experience in '+S.genre+' fiction. '
+      +'You are brutally honest. Your assessments are specific, actionable, and grounded in '
+      +'what makes '+S.genre+' bestsellers work. No flattery. No vague advice.';
 
-    var excerpt1=ch.content.substring(0,1000);
-    var R1='REVISION TASK - Improve this '+S.genre+' chapter opening to score higher vs bestsellers.\n'
-      +'Primary fix needed: '+target+'\n'
-      +'Issues to resolve: '+issues+'\n'
-      +'Must preserve: '+keep+'\n'
-      +(histNote?histNote+'\n':'')
-      +'ORIGINAL OPENING TO REVISE:\n'
-      +excerpt1+'\n'
-      +'Write an improved version of only this opening section. Same length. Same plot events. No labels or headers. Prose only.';
-    var imp1=await ask(SYS,R1,1200);
+    var excerpt=ch.content.substring(0,1300);
+    var prevIssues=(ch.issues||[]).join('; ')||'none documented yet';
+    var prevStrengths=(ch.strengths||[]).join('; ')||'none documented yet';
+    var failedAttempts=(ch.revisionHistory||[]).slice(-3).join(' | ')||'none';
 
-    if(ws)ws.textContent='Improving chapter body and ending (Part 2 of 2)…';
+    var CUSR='Perform a full professional in-depth critical assessment of this '+S.genre+' chapter '
+      +'under each of the following five professional hats. '
+      +'For each hat, list ALL the specific ways this chapter can be enhanced. '
+      +'Be concrete and actionable — name the exact lines, scenes, or elements to change. '
+      +'Previous score: '+prevScore+'/10. Known issues: '+prevIssues+'. '
+      +'Known strengths to preserve: '+prevStrengths+'. '
+      +'Previous revision attempts that did NOT raise the score: '+failedAttempts+'. '
+      +'Do NOT repeat those approaches.\n\n'
+      +'Chapter '+ch.number+': "'+ch.title+'" from "'+S.novelTitle+'"\n'
+      +'Synopsis: '+ch.synopsis+'\n'
+      +'Chapter excerpt:\n'+excerpt+'\n\n'
+      +'ASSESSMENT UNDER EACH HAT:\n\n'
+      +'1. PROFESSIONAL WRITER HAT — Voice, prose style, sentence rhythm, word choice, imagery, metaphor, show vs tell:\n'
+      +'2. AUTHOR HAT — Character motivation, authenticity, interiority, arc progression, subtext:\n'
+      +'3. DEVELOPMENTAL EDITOR HAT — Scene structure, pacing, narrative tension, chapter goal, stakes, opening hook, closing hook:\n'
+      +'4. BETA-READER HAT — Reader engagement, confusion points, emotional payoff, moments of boredom or disconnection:\n'
+      +'5. NOVEL CRITIC HAT — How this chapter compares to published '+S.genre+' bestsellers. What the best authors in this genre do that this chapter does not.\n\n'
+      +'REVISION PLAN: After all five assessments, write a REVISION PLAN that lists every specific change to make. '
+      +'Each change must directly address a finding above. '
+      +'These changes, when applied together, must collectively guarantee a higher comparison rating. '
+      +'Be extremely specific — name what to rewrite, strengthen, cut, or add.';
+
+    critiqueDoc=await ask(CSYS,CUSR,1300);
+    if(ws)ws.textContent='Phase 1 complete. Applying enhancements (Part 1 of 2)…';
+
+    // ── PHASE 2: Apply all critique findings to the first half ───────────────
+    var RSYS='You are an elite '+S.genre+' author executing a professional revision. '
+      +'You have just received a detailed professional critique under 5 lenses. '
+      +'Your task: apply EVERY enhancement from the critique plan to this chapter section. '
+      +'This revision MUST score higher than '+prevScore+'/10 vs '+S.genre+' bestsellers. '
+      +'Preserve all strengths. Keep the same plot events, characters, and POV. '
+      +'Write prose only — no labels, no headers, no meta-commentary.';
+
+    var excerpt1=ch.content.substring(0,1100);
+    var R1='PROFESSIONAL CRITIQUE AND REVISION PLAN:\n'
+      +critiqueDoc.substring(0,800)+'\n\n'
+      +'NOW EXECUTE THE REVISION — FIRST HALF OF CHAPTER:\n'
+      +'Apply every enhancement identified above to this section. '
+      +'Strengthen the prose, deepen character voice, sharpen tension, improve the hook. '
+      +'Every sentence should be at the level of a published '+S.genre+' bestseller.\n\n'
+      +'ORIGINAL FIRST HALF:\n'+excerpt1+'\n\n'
+      +'Write the improved version. Same events. Higher quality. Prose only.';
+    var imp1=await ask(RSYS,R1,1200);
+
+    // ── PHASE 3: Apply critique to the second half ────────────────────────────
+    if(ws)ws.textContent='Phase 3 of 3: Applying enhancements (Part 2 of 2)…';
+
     var midStart=Math.floor(ch.content.length*0.45);
-    var excerpt2=ch.content.substring(midStart,midStart+1000);
-    var R2='REVISION TASK - Improve this '+S.genre+' chapter section to score higher vs bestsellers.\n'
-      +'Primary fix needed: '+target+'\n'
-      +'Issues to resolve: '+issues+'\n'
-      +'Must preserve: '+keep+'\n'
-      +'The revised opening now ends with:\n---\n'
-      +imp1.slice(-300)+'\n---\n'
-      +'ORIGINAL SECTION TO REVISE:\n'
-      +excerpt2+'\n'
-      +'Write an improved version of only this section. End with a strong hook pulling into the next chapter. Prose only.';
-    var imp2=await ask(SYS,R2,1200);
+    var excerpt2=ch.content.substring(midStart,midStart+1100);
+    var R2='PROFESSIONAL CRITIQUE AND REVISION PLAN (continued):\n'
+      +critiqueDoc.substring(800,1500)+'\n\n'
+      +'NOW EXECUTE THE REVISION — SECOND HALF OF CHAPTER:\n'
+      +'Apply every enhancement to this section. '
+      +'The first half has been revised and ends with:\n---\n'
+      +imp1.slice(-350)+'\n---\n'
+      +'Continue naturally from the above. '
+      +'Deepen emotional resonance, strengthen pacing, end with a powerful hook into the next chapter. '
+      +'Every sentence must match published '+S.genre+' bestseller quality.\n\n'
+      +'ORIGINAL SECOND HALF:\n'+excerpt2+'\n\n'
+      +'Write the improved version. Same events. Higher quality. Prose only.';
+    var imp2=await ask(RSYS,R2,1200);
 
-    var bridge=ch.content.substring(1000,midStart);
+    // Assemble revised chapter
+    var bridge=ch.content.substring(1100,midStart);
     var newContent=imp1+(bridge?'\n\n'+bridge:'')+'\n\n'+imp2;
 
+    // Log this revision attempt
     if(!ch.revisionHistory)ch.revisionHistory=[];
-    ch.revisionHistory.push('Rev '+(ch.revisions+1)+': targeted "'+target+'"');
+    ch.revisionHistory.push('Rev '+(ch.revisions+1)+': full 5-hat critique + targeted rewrite (was '+prevScore+'/10)');
+
     ch.content=newContent;
     ch.revisions=(ch.revisions||0)+1;
     ch.status='done';
+
+    // Store previous best for auto-rollback in rateCh
     ch._prevContent=prevContent;
     ch._prevScore=prevScore;
     ch._prevCritique=prevCritique;
+    ch._critiqueDoc=critiqueDoc; // save full critique for display
+
     ch.score=0;
-    ch.critique='Revision '+ch.revisions+' complete. Rate to compare vs previous score of '+prevScore+'/10.';
+    ch.critique='Revision '+ch.revisions+' applied (5-hat critique + full rewrite). '
+      +'Rate now to compare vs previous '+prevScore+'/10.';
+
     renderChList();
     renderChEditor(i);
-    toast('Revision '+ch.revisions+' done — rate to compare vs '+prevScore+'/10.');
+    toast('Revision '+ch.revisions+' complete — rate to compare vs '+prevScore+'/10.');
+
   }catch(e){
+    // On any error restore previous version
     ch.content=prevContent;
     ch.score=prevScore;
     ch.critique=prevCritique;
