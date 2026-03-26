@@ -724,7 +724,20 @@ function renderChEditor(i){
   if(ch.content){
     h+='<div class="tabbar"><button class="tbtn active" id="tProse">Prose</button><button class="tbtn" id="tCrit">Critique &amp; Score</button></div>'
       +'<div id="pProse"><div class="prose" contenteditable="true" id="pCont">'+ch.content+'</div><div style="font-family:var(--fm);font-size:11px;color:var(--ink3);margin-top:6px">'+wc(ch.content).toLocaleString()+' words</div></div>'
-      +'<div id="pCrit" class="hidden"><div style="display:flex;align-items:center;gap:16px;margin-bottom:14px"><div><div class="score '+(sc>=9?'hi':'')+'" style="color:'+col+'">'+( sc||'—')+'</div><div style="font-family:var(--fm);font-size:10px;color:var(--ink3);text-transform:uppercase">/10 vs bestsellers</div></div><div style="flex:1"><div class="rbar"><div class="rfill" style="width:'+(sc*10)+'%"></div></div><div style="font-size:11px;color:var(--ink3);margin-top:3px">'+(ch.revisions||0)+' revision(s)</div></div></div>'+(ch.critique?'<div class="crit"><h4>Summary Critique</h4><p>'+ch.critique+'</p></div>':'')+(ch.issues&&ch.issues.length?'<div class="crit" style="margin-top:8px"><h4>All Issues Identified ('+ch.issues.length+')</h4><ul style="padding-left:18px;font-size:13px;color:var(--ink2);line-height:1.8">'+ch.issues.map(function(x){return '<li>'+x+'</li>';}).join('')+'</ul></div>':'')+(ch.improvePriority?'<div class="crit t" style="margin-top:8px"><h4>Revision Plan</h4><p style="font-size:13px;color:var(--ink2)">'+ch.improvePriority+'</p></div>':'')+(ch._critiqueDoc?'<div style="margin-top:10px"><details><summary style="cursor:pointer;font-family:var(--fm);font-size:12px;color:var(--ink3);padding:8px 0">&#9656; Full 5-Hat Professional Critique</summary><div style="background:var(--parch);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:8px;font-size:13px;color:var(--ink2);line-height:1.7;white-space:pre-wrap;max-height:400px;overflow-y:auto">'+ch._critiqueDoc+'</div></details></div>':'')+'</div>';
+      +'<div id="pCrit" class="hidden"><div style="display:flex;align-items:center;gap:16px;margin-bottom:14px"><div><div class="score '+(sc>=9?'hi':'')+'" style="color:'+col+'">'+( sc||'—')+'</div><div style="font-family:var(--fm);font-size:10px;color:var(--ink3);text-transform:uppercase">/10 vs bestsellers</div></div><div style="flex:1"><div class="rbar"><div class="rfill" style="width:'+(sc*10)+'%"></div></div><div style="font-size:11px;color:var(--ink3);margin-top:3px">'+(ch.revisions||0)+' revision(s)</div></div></div>'+(ch.rubricDetail?'<div style="background:var(--parch2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-family:var(--fm);font-size:11px;color:var(--ink3);line-height:1.9">'
+  +'<div style="font-weight:500;color:var(--ink2);margin-bottom:6px;font-size:12px">Rubric Scores</div>'
+  +ch.rubricDetail.split(' | ').map(function(r){
+    var parts=r.split(':');var name=parts[0]||'';var val=parseFloat(parts[1])||0;
+    var pct=Math.round(val*100);
+    var col=val>=0.8?'var(--teal)':val>=0.6?'var(--gold)':'var(--red)';
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">'
+      +'<div style="width:110px;flex-shrink:0">'+name.replace('R1 ','1.').replace('R2 ','2.').replace('R3 ','3.').replace('R4 ','4.').replace('R5 ','5.').replace('R6 ','6.').replace('R7 ','7.').replace('R8 ','8.').replace('R9 ','9.').replace('R10 ','10.')+'</div>'
+      +'<div style="flex:1;height:6px;background:var(--parch3);border-radius:3px;overflow:hidden">'
+      +'<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:3px"></div></div>'
+      +'<div style="width:28px;text-align:right;color:'+col+'">'+val+'</div>'
+      +'</div>';
+  }).join('')+'</div>':'')
++(ch.critique?'<div class="crit"><h4>Rubric Summary</h4><p>'+ch.critique+'</p></div>':'')+(ch.issues&&ch.issues.length?'<div class="crit" style="margin-top:8px"><h4>All Issues Identified ('+ch.issues.length+')</h4><ul style="padding-left:18px;font-size:13px;color:var(--ink2);line-height:1.8">'+ch.issues.map(function(x){return '<li>'+x+'</li>';}).join('')+'</ul></div>':'')+(ch.improvePriority?'<div class="crit t" style="margin-top:8px"><h4>Revision Plan</h4><p style="font-size:13px;color:var(--ink2)">'+ch.improvePriority+'</p></div>':'')+(ch._critiqueDoc?'<div style="margin-top:10px"><details><summary style="cursor:pointer;font-family:var(--fm);font-size:12px;color:var(--ink3);padding:8px 0">&#9656; Full 5-Hat Professional Critique</summary><div style="background:var(--parch);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:8px;font-size:13px;color:var(--ink2);line-height:1.7;white-space:pre-wrap;max-height:400px;overflow-y:auto">'+ch._critiqueDoc+'</div></details></div>':'')+'</div>';
     h+='<div class="arow" style="margin-top:14px">';
     if(!ch.approved)h+='<button class="btn btn-g btn-sm" id="bRateCh">★ Rate vs Bestsellers</button>';
     if(sc>0&&sc<9&&!ch.approved)h+='<button class="btn btn-p btn-sm" id="bRevCh">✒ Revise to 9/10</button>';
@@ -762,66 +775,88 @@ async function rateCh(i){
   var btn=document.getElementById('bRateCh');
   if(btn){btn.disabled=true;btn.textContent='★ Rating…';}
 
-  var SYS='You are a rigorous literary critic and acquisitions editor specializing in '+S.genre+' fiction. '
-    +'You have read hundreds of '+S.genre+' bestsellers and know precisely what separates a 6 from a 9. '
-    +'Return ONLY a valid JSON object. No markdown. ASCII characters only in all string values.';
+  // Rubric-based scoring: 10 fixed criteria, 1 point each.
+  // Same rubric every time = consistent, comparable scores across revisions.
+  var RSYS='You are a senior acquisitions editor at a major publishing house specializing in '
+    +S.genre+' fiction. You are objective, consistent, and demanding. '
+    +'You score manuscripts against a fixed rubric. '
+    +'Return ONLY valid JSON. ASCII characters only. No markdown.';
+
+  var prevScoreNote=ch.score>0
+    ?'IMPORTANT: The previous score for this chapter was '+ch.score+'/10. '
+      +'If you score it the same or lower this time, you MUST explain specifically what has NOT improved. '
+      +'If you score it higher, explain specifically what DID improve. Be honest — do not inflate.'
+    :'';
 
   var excerpt=ch.content.substring(0,1400);
-  var USR='Rate this '+S.genre+' chapter against published '+S.genre+' bestsellers. '
-    +'Be a demanding professional critic — do not inflate scores. '
-    +'Score 9-10 means it matches the best published '+S.genre+' novels. '
-    +'Score 7-8 means competent but clearly below published quality. '
-    +'Score 5-6 means significant issues. Be honest and specific.\n\n'
-    +'Novel: "'+S.novelTitle+'" | Chapter '+ch.number+': "'+ch.title+'"\n'
-    +'Synopsis: '+ch.synopsis+'\n'
-    +'Chapter excerpt (first 1400 chars):\n'+excerpt+'\n\n'
-    +'Return JSON with these exact fields:\n'
-    +'{"score":7.5,'
-    +'"critique":"3-4 honest sentences covering what works and what falls short vs published '+S.genre+' novels",'
-    +'"writerIssues":["issue from writer perspective: voice pacing structure"],'
-    +'"editorIssues":["issue from editor perspective: clarity flow consistency"],'
-    +'"betaIssues":["issue from reader perspective: engagement confusion boredom"],'
-    +'"coachIssues":["issue from craft perspective: scene goals stakes tension"],'
-    +'"criticIssues":["issue from critic perspective: vs genre conventions and bestsellers"],'
-    +'"strengths":["what is working well — be specific"],'
-    +'"nextRevisionPlan":"Specific actionable plan: exactly what to change in the next revision to guarantee a higher score"}';
+  var RUSR='Score this '+S.genre+' chapter using the 10-point rubric below. '
+    +'Each criterion is worth exactly 1.0 point. Add the 10 scores for the total (max 10.0). '
+    +(prevScoreNote?prevScoreNote+'\n\n':'')
+    +'CHAPTER: "'+ch.title+'" from "'+S.novelTitle+'" | Synopsis: '+ch.synopsis+'\n'
+    +'EXCERPT (first 1400 chars):\n'+excerpt+'\n\n'
+    +'RUBRIC — score each 0.0 to 1.0:\n'
+    +'R1_HOOK: Does the first paragraph compel the reader to continue? (0=no hook, 1=irresistible)\n'
+    +'R2_PROSE: Is the sentence-level writing vivid, precise, and rhythmically varied? (0=flat/generic, 1=publishable)\n'
+    +'R3_VOICE: Is the POV character voice distinct, consistent, and engaging? (0=generic, 1=distinctive)\n'
+    +'R4_CHARACTER: Do character actions/dialogue reveal psychology and feel authentic? (0=cardboard, 1=dimensional)\n'
+    +'R5_TENSION: Is there escalating tension or conflict driving the scene? (0=no stakes, 1=high stakes)\n'
+    +'R6_PACING: Does the scene move at the right speed — no dragging, no rushing? (0=pacing problems, 1=perfect)\n'
+    +'R7_SHOWING: Does it show rather than tell? Sensory detail, not exposition? (0=all telling, 1=all showing)\n'
+    +'R8_DIALOGUE: Is dialogue natural, subtext-rich, and does it advance story? (0=on-the-nose/absent, 1=excellent)\n'
+    +'R9_GENRE: Does it deliver what '+S.genre+' readers expect and pay for? (0=misses genre, 1=nails genre)\n'
+    +'R10_ENDING: Does the chapter end with a hook that pulls into the next chapter? (0=flat ending, 1=compelling hook)\n\n'
+    +'Return JSON:\n'
+    +'{"R1_HOOK":0.8,"R2_PROSE":0.7,"R3_VOICE":0.8,"R4_CHARACTER":0.7,"R5_TENSION":0.6,'
+    +'"R6_PACING":0.7,"R7_SHOWING":0.6,"R8_DIALOGUE":0.7,"R9_GENRE":0.8,"R10_ENDING":0.7,'
+    +'"score":7.1,'
+    +'"rubricSummary":"One sentence explaining the pattern in these scores",'
+    +'"topWeaknesses":["The single most damaging weakness with a specific example from the text","Second most damaging weakness with specific example"],'
+    +'"topStrengths":["What is genuinely working well with a specific example"],'
+    +'"nextRevisionSpec":"A numbered list of exactly what to change. Each item must be specific enough that a writer knows exactly what to do. Format: 1. [what] [where] [why it will raise a specific rubric score]"}';
 
   try{
-    var d=await askJ(SYS,USR,900);
-    var newScore=parseFloat(d.score)||7;
+    var d=await askJ(RSYS,RUSR,1000);
 
-    // Aggregate all issues into one master list for the revision
-    var allIssues=[].concat(
-      d.writerIssues||[],
-      d.editorIssues||[],
-      d.betaIssues||[],
-      d.coachIssues||[],
-      d.criticIssues||[]
-    ).filter(Boolean).slice(0,8);
+    // Calculate score from rubric if individual scores present
+    var rubricKeys=['R1_HOOK','R2_PROSE','R3_VOICE','R4_CHARACTER','R5_TENSION','R6_PACING','R7_SHOWING','R8_DIALOGUE','R9_GENRE','R10_ENDING'];
+    var rubricSum=0;var rubricCount=0;
+    rubricKeys.forEach(function(k){if(typeof d[k]==='number'){rubricSum+=d[k];rubricCount++;}});
+    var newScore=rubricCount===10
+      ?Math.round(rubricSum*10)/10  // use rubric sum directly
+      :parseFloat(d.score)||7;
+
+    // Store rubric detail for display
+    var rubricDetail=rubricKeys.map(function(k){
+      return k.replace('_',' ')+': '+(d[k]||'?');
+    }).join(' | ');
+
+    var allIssues=[].concat(d.topWeaknesses||[]).filter(Boolean);
+    var allStrengths=[].concat(d.topStrengths||[]).filter(Boolean);
 
     // Auto-rollback: if revised version scored lower, restore previous best
     if(ch._prevContent && ch._prevScore && newScore < ch._prevScore){
-      toast('Rev '+ch.revisions+' scored '+newScore+'/10 — below previous '+ch._prevScore+'/10. Keeping best version.');
+      toast('Rev scored '+newScore+'/10 — below best '+ch._prevScore+'/10. Restoring best version.');
       ch.content=ch._prevContent;
       ch.score=ch._prevScore;
-      // But UPDATE the critique with fresh diagnostic detail for next attempt
       ch.issues=allIssues;
-      ch.strengths=d.strengths||ch.strengths||[];
-      ch.improvePriority=d.nextRevisionPlan||d.critique||'';
+      ch.strengths=allStrengths;
+      ch.improvePriority=d.nextRevisionSpec||'';
+      ch.rubricDetail=rubricDetail;
       if(!ch.revisionHistory)ch.revisionHistory=[];
-      ch.revisionHistory.push('Rev '+ch.revisions+' scored '+newScore+' — rolled back. Plan: '+(d.nextRevisionPlan||'').substring(0,80));
+      ch.revisionHistory.push('Rev '+ch.revisions+' scored '+newScore+' ROLLED BACK. Spec saved for next attempt.');
       ch._prevContent=null;ch._prevScore=null;ch._prevCritique=null;
-      ch.critique='ROLLED BACK to '+ch._prevScore+'/10 (revision scored '+newScore+'/10). '
-        +'Fresh critique applied for next attempt. Next revision plan: '+(d.nextRevisionPlan||d.critique||'');
-    } else {
-      var improved=ch._prevScore&&newScore>ch._prevScore;
+      ch.critique='BEST VERSION RESTORED ('+ch._prevScore+'/10). '
+        +'New rubric analysis saved for next revision. '+(d.rubricSummary||'');
+    }else{
+      var prev=ch._prevScore;
       ch.score=newScore;
-      ch.critique=d.critique||'';
+      ch.critique=(d.rubricSummary||'')+' '+( d.topWeaknesses&&d.topWeaknesses[0]?'Main issue: '+d.topWeaknesses[0]:'');
       ch.issues=allIssues;
-      ch.strengths=d.strengths||[];
-      ch.improvePriority=d.nextRevisionPlan||'';
+      ch.strengths=allStrengths;
+      ch.improvePriority=d.nextRevisionSpec||'';
+      ch.rubricDetail=rubricDetail;
       ch._prevContent=null;ch._prevScore=null;ch._prevCritique=null;
-      if(improved)toast('Chapter '+ch.number+' improved: '+newScore+'/10 (was '+ch._prevScore+') ↑');
+      if(prev&&newScore>prev)toast('Chapter '+ch.number+' improved: '+newScore+'/10 (was '+prev+') ↑');
       else toast('Chapter '+ch.number+' scored: '+newScore+'/10');
     }
 
@@ -834,128 +869,104 @@ async function rateCh(i){
 }
 async function revCh(i){
   var ch=S.chapters[i];
+  if(!ch.content){toast('Write the chapter first.');return;}
+
   var prevContent=ch.content;
   var prevScore=ch.score||0;
   var prevCritique=ch.critique||'';
 
   ch.status='writing';
   renderChEditor(i);
-
   var ws=document.getElementById('wstat');
 
-  // ── PHASE 1: Deep multi-hat professional critique ─────────────────────────
-  // This is the diagnostic step. We get specific, actionable enhancements
-  // under 5 professional lenses before touching a single word of the chapter.
-  if(ws)ws.textContent='Phase 1 of 3: Professional critique under 5 lenses…';
-
-  var critiqueDoc='';
-  var revisionPlan='';
-
   try{
-    var CSYS='You are simultaneously a professional writer, author, developmental editor, '
-      +'beta-reader, book coach, and novel critic with 20 years of experience in '+S.genre+' fiction. '
-      +'You are brutally honest. Your assessments are specific, actionable, and grounded in '
-      +'what makes '+S.genre+' bestsellers work. No flattery. No vague advice.';
+    // ── PHASE 1: Build a concrete revision spec from the rubric ───────────────
+    // We get specific, measurable improvements for each weak rubric criterion
+    // BEFORE touching the prose. This is the blueprint for the rewrite.
+    if(ws)ws.textContent='Phase 1 of 3: Building revision spec from rubric analysis…';
+
+    var SSYS='You are a developmental editor and writing coach specializing in '+S.genre+'. '
+      +'You write precise, actionable improvement specs. No vague advice. No praise. '
+      +'Every instruction must be specific enough that a writer knows exactly what sentence or scene to change and how.';
 
     var excerpt=ch.content.substring(0,1300);
-    var prevIssues=(ch.issues||[]).join('; ')||'none documented yet';
-    var prevStrengths=(ch.strengths||[]).join('; ')||'none documented yet';
-    var failedAttempts=(ch.revisionHistory||[]).slice(-3).join(' | ')||'none';
+    var prevIssues=(ch.issues||[]).join('\n- ')||'not yet assessed';
+    var prevStrengths=(ch.strengths||[]).join(', ')||'not yet assessed';
+    var prevSpec=ch.improvePriority||'not yet assessed';
+    var failedAttempts=(ch.revisionHistory||[]).filter(function(x){return x.includes('ROLLED BACK');}).length;
 
-    var CUSR='Perform a full professional in-depth critical assessment of this '+S.genre+' chapter '
-      +'under each of the following five professional hats. '
-      +'For each hat, list ALL the specific ways this chapter can be enhanced. '
-      +'Be concrete and actionable — name the exact lines, scenes, or elements to change. '
-      +'Previous score: '+prevScore+'/10. Known issues: '+prevIssues+'. '
-      +'Known strengths to preserve: '+prevStrengths+'. '
-      +'Previous revision attempts that did NOT raise the score: '+failedAttempts+'. '
-      +'Do NOT repeat those approaches.\n\n'
-      +'Chapter '+ch.number+': "'+ch.title+'" from "'+S.novelTitle+'"\n'
-      +'Synopsis: '+ch.synopsis+'\n'
-      +'Chapter excerpt:\n'+excerpt+'\n\n'
-      +'ASSESSMENT UNDER EACH HAT:\n\n'
-      +'1. PROFESSIONAL WRITER HAT — Voice, prose style, sentence rhythm, word choice, imagery, metaphor, show vs tell:\n'
-      +'2. AUTHOR HAT — Character motivation, authenticity, interiority, arc progression, subtext:\n'
-      +'3. DEVELOPMENTAL EDITOR HAT — Scene structure, pacing, narrative tension, chapter goal, stakes, opening hook, closing hook:\n'
-      +'4. BETA-READER HAT — Reader engagement, confusion points, emotional payoff, moments of boredom or disconnection:\n'
-      +'5. NOVEL CRITIC HAT — How this chapter compares to published '+S.genre+' bestsellers. What the best authors in this genre do that this chapter does not.\n\n'
-      +'REVISION PLAN: After all five assessments, write a REVISION PLAN that lists every specific change to make. '
-      +'Each change must directly address a finding above. '
-      +'These changes, when applied together, must collectively guarantee a higher comparison rating. '
-      +'Be extremely specific — name what to rewrite, strengthen, cut, or add.';
+    var SUSR='The chapter below scored '+prevScore+'/10. '
+      +'Your job: write a REVISION SPEC that tells a writer exactly what to change to score higher on each of these rubric criteria. '
+      +'Focus on the lowest-scoring criteria. Be surgical and specific.\n\n'
+      +'KNOWN WEAK AREAS FROM RUBRIC:\n- '+prevIssues+'\n'
+      +'STRENGTHS TO PROTECT:\n'+prevStrengths+'\n'
+      +(failedAttempts>0?'NOTE: '+failedAttempts+' previous revision(s) failed to raise the score. Try a fundamentally different approach.\n':'')
+      +'CHAPTER EXCERPT:\n'+excerpt+'\n\n'
+      +'Write the REVISION SPEC as a numbered list. Each item:\n'
+      +'[Rubric criterion it fixes] | [Exact location in chapter] | [What to change] | [What to change it TO]\n'
+      +'Example: R2_PROSE | Opening paragraph | Generic weather description | Replace with Akhenaten noticing something that reveals his internal state\n'
+      +'Write 6-10 specific items. These items collectively must raise the score by at least 1 full point.';
 
-    critiqueDoc=await ask(CSYS,CUSR,1300);
-    if(ws)ws.textContent='Phase 1 complete. Applying enhancements (Part 1 of 2)…';
+    var revisionSpec=await ask(SSYS,SUSR,1200);
+    if(ws)ws.textContent='Phase 2 of 3: Rewriting first half to spec…';
 
-    // ── PHASE 2: Apply all critique findings to the first half ───────────────
-    var RSYS='You are an elite '+S.genre+' author executing a professional revision. '
-      +'You have just received a detailed professional critique under 5 lenses. '
-      +'Your task: apply EVERY enhancement from the critique plan to this chapter section. '
-      +'This revision MUST score higher than '+prevScore+'/10 vs '+S.genre+' bestsellers. '
-      +'Preserve all strengths. Keep the same plot events, characters, and POV. '
-      +'Write prose only — no labels, no headers, no meta-commentary.';
+    // ── PHASE 2: Rewrite first half using the spec as blueprint ──────────────
+    // Key insight: we give the model the SPEC and the ORIGINAL and say
+    // "write a new version that implements every item in the spec"
+    // This forces it to make concrete changes rather than paraphrasing.
+    var WSYS='You are a professional '+S.genre+' author. '
+      +'You have been given a revision spec written by an editor. '
+      +'Your job is to implement EVERY item in the spec precisely. '
+      +'The result must be clearly better than the original on the specified criteria. '
+      +'Write prose only — no headings, no labels, no meta-commentary. Same plot events, same characters.';
 
-    var excerpt1=ch.content.substring(0,1100);
-    var R1='PROFESSIONAL CRITIQUE AND REVISION PLAN:\n'
-      +critiqueDoc.substring(0,800)+'\n\n'
-      +'NOW EXECUTE THE REVISION — FIRST HALF OF CHAPTER:\n'
-      +'Apply every enhancement identified above to this section. '
-      +'Strengthen the prose, deepen character voice, sharpen tension, improve the hook. '
-      +'Every sentence should be at the level of a published '+S.genre+' bestseller.\n\n'
-      +'ORIGINAL FIRST HALF:\n'+excerpt1+'\n\n'
-      +'Write the improved version. Same events. Higher quality. Prose only.';
-    var imp1=await ask(RSYS,R1,1200);
+    var orig1=ch.content.substring(0,1100);
+    var R1='REVISION SPEC (implement every item):\n'
+      +revisionSpec+'\n\n'
+      +'ORIGINAL FIRST HALF (rewrite this implementing the spec):\n'
+      +orig1+'\n\n'
+      +'Write the improved first half. Implement every applicable spec item. '
+      +'Pay special attention to: the opening hook (R1), prose quality (R2), and showing vs telling (R7). '
+      +'Same length as original. Prose only.';
+    var imp1=await ask(WSYS,R1,1300);
 
-    // ── PHASE 3: Apply critique to the second half ────────────────────────────
-    if(ws)ws.textContent='Phase 3 of 3: Applying enhancements (Part 2 of 2)…';
+    if(ws)ws.textContent='Phase 3 of 3: Rewriting second half to spec…';
 
+    // ── PHASE 3: Rewrite second half using same spec ──────────────────────────
     var midStart=Math.floor(ch.content.length*0.45);
-    var excerpt2=ch.content.substring(midStart,midStart+1100);
-    var R2='PROFESSIONAL CRITIQUE AND REVISION PLAN (continued):\n'
-      +critiqueDoc.substring(800,1500)+'\n\n'
-      +'NOW EXECUTE THE REVISION — SECOND HALF OF CHAPTER:\n'
-      +'Apply every enhancement to this section. '
-      +'The first half has been revised and ends with:\n---\n'
-      +imp1.slice(-350)+'\n---\n'
-      +'Continue naturally from the above. '
-      +'Deepen emotional resonance, strengthen pacing, end with a powerful hook into the next chapter. '
-      +'Every sentence must match published '+S.genre+' bestseller quality.\n\n'
-      +'ORIGINAL SECOND HALF:\n'+excerpt2+'\n\n'
-      +'Write the improved version. Same events. Higher quality. Prose only.';
-    var imp2=await ask(RSYS,R2,1200);
+    var orig2=ch.content.substring(midStart,midStart+1100);
+    var R2='REVISION SPEC (implement every item):\n'
+      +revisionSpec+'\n\n'
+      +'The first half has been revised and now ends with:\n---\n'
+      +imp1.slice(-400)+'\n---\n\n'
+      +'ORIGINAL SECOND HALF (rewrite this implementing the spec):\n'
+      +orig2+'\n\n'
+      +'Write the improved second half. Continue naturally. '
+      +'Pay special attention to: tension (R5), dialogue (R8), and the chapter ending hook (R10). '
+      +'Same length as original. Prose only.';
+    var imp2=await ask(WSYS,R2,1300);
 
-    // Assemble revised chapter
+    // Assemble
     var bridge=ch.content.substring(1100,midStart);
-    var newContent=imp1+(bridge?'\n\n'+bridge:'')+'\n\n'+imp2;
-
-    // Log this revision attempt
-    if(!ch.revisionHistory)ch.revisionHistory=[];
-    ch.revisionHistory.push('Rev '+(ch.revisions+1)+': full 5-hat critique + targeted rewrite (was '+prevScore+'/10)');
-
-    ch.content=newContent;
+    ch.content=imp1+(bridge?'\n\n'+bridge:'')+'\n\n'+imp2;
     ch.revisions=(ch.revisions||0)+1;
     ch.status='done';
-
-    // Store previous best for auto-rollback in rateCh
     ch._prevContent=prevContent;
     ch._prevScore=prevScore;
     ch._prevCritique=prevCritique;
-    ch._critiqueDoc=critiqueDoc; // save full critique for display
-
+    ch._critiqueDoc=revisionSpec;
     ch.score=0;
-    ch.critique='Revision '+ch.revisions+' applied (5-hat critique + full rewrite). '
-      +'Rate now to compare vs previous '+prevScore+'/10.';
+    ch.critique='Revision '+ch.revisions+' complete (rubric-spec rewrite). '
+      +'Rate to compare vs previous '+prevScore+'/10.';
 
-    renderChList();
-    renderChEditor(i);
-    toast('Revision '+ch.revisions+' complete — rate to compare vs '+prevScore+'/10.');
+    if(!ch.revisionHistory)ch.revisionHistory=[];
+    ch.revisionHistory.push('Rev '+ch.revisions+': spec-driven rewrite targeting rubric weaknesses (prev '+prevScore+'/10)');
+
+    renderChList();renderChEditor(i);
+    toast('Revision '+ch.revisions+' done. Rate to see rubric improvement vs '+prevScore+'/10.');
 
   }catch(e){
-    // On any error restore previous version
-    ch.content=prevContent;
-    ch.score=prevScore;
-    ch.critique=prevCritique;
-    ch.status='done';
+    ch.content=prevContent;ch.score=prevScore;ch.critique=prevCritique;ch.status='done';
     renderChEditor(i);
     toast('Revision error — previous version restored. '+e.message);
   }
