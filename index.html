@@ -775,88 +775,78 @@ async function rateCh(i){
   var btn=document.getElementById('bRateCh');
   if(btn){btn.disabled=true;btn.textContent='★ Rating…';}
 
-  // Rubric-based scoring: 10 fixed criteria, 1 point each.
-  // Same rubric every time = consistent, comparable scores across revisions.
-  var RSYS='You are a senior acquisitions editor at a major publishing house specializing in '
-    +S.genre+' fiction. You are objective, consistent, and demanding. '
-    +'You score manuscripts against a fixed rubric. '
-    +'Return ONLY valid JSON. ASCII characters only. No markdown.';
-
-  var prevScoreNote=ch.score>0
-    ?'IMPORTANT: The previous score for this chapter was '+ch.score+'/10. '
-      +'If you score it the same or lower this time, you MUST explain specifically what has NOT improved. '
-      +'If you score it higher, explain specifically what DID improve. Be honest — do not inflate.'
-    :'';
+  // Use TWO independent rating calls and average them.
+  // This eliminates single-call drift and makes scores far more stable.
+  var SYS1='You are a hard-nosed acquisitions editor at a top publishing house. '
+    +'You specialize in '+S.genre+' fiction and have rejected 90% of manuscripts you have read. '
+    +'You score strictly against published '+S.genre+' bestsellers. '
+    +'A 9 means it matches books currently on the NYT bestseller list. '
+    +'A 7 means it is competent but would need major work before publication. '
+    +'A 5 means it has serious problems. Do not inflate scores. '
+    +'Return ONLY valid JSON. ASCII only. No markdown.';
 
   var excerpt=ch.content.substring(0,1400);
-  var RUSR='Score this '+S.genre+' chapter using the 10-point rubric below. '
-    +'Each criterion is worth exactly 1.0 point. Add the 10 scores for the total (max 10.0). '
-    +(prevScoreNote?prevScoreNote+'\n\n':'')
-    +'CHAPTER: "'+ch.title+'" from "'+S.novelTitle+'" | Synopsis: '+ch.synopsis+'\n'
-    +'EXCERPT (first 1400 chars):\n'+excerpt+'\n\n'
-    +'RUBRIC — score each 0.0 to 1.0:\n'
-    +'R1_HOOK: Does the first paragraph compel the reader to continue? (0=no hook, 1=irresistible)\n'
-    +'R2_PROSE: Is the sentence-level writing vivid, precise, and rhythmically varied? (0=flat/generic, 1=publishable)\n'
-    +'R3_VOICE: Is the POV character voice distinct, consistent, and engaging? (0=generic, 1=distinctive)\n'
-    +'R4_CHARACTER: Do character actions/dialogue reveal psychology and feel authentic? (0=cardboard, 1=dimensional)\n'
-    +'R5_TENSION: Is there escalating tension or conflict driving the scene? (0=no stakes, 1=high stakes)\n'
-    +'R6_PACING: Does the scene move at the right speed — no dragging, no rushing? (0=pacing problems, 1=perfect)\n'
-    +'R7_SHOWING: Does it show rather than tell? Sensory detail, not exposition? (0=all telling, 1=all showing)\n'
-    +'R8_DIALOGUE: Is dialogue natural, subtext-rich, and does it advance story? (0=on-the-nose/absent, 1=excellent)\n'
-    +'R9_GENRE: Does it deliver what '+S.genre+' readers expect and pay for? (0=misses genre, 1=nails genre)\n'
-    +'R10_ENDING: Does the chapter end with a hook that pulls into the next chapter? (0=flat ending, 1=compelling hook)\n\n'
-    +'Return JSON:\n'
-    +'{"R1_HOOK":0.8,"R2_PROSE":0.7,"R3_VOICE":0.8,"R4_CHARACTER":0.7,"R5_TENSION":0.6,'
-    +'"R6_PACING":0.7,"R7_SHOWING":0.6,"R8_DIALOGUE":0.7,"R9_GENRE":0.8,"R10_ENDING":0.7,'
-    +'"score":7.1,'
-    +'"rubricSummary":"One sentence explaining the pattern in these scores",'
-    +'"topWeaknesses":["The single most damaging weakness with a specific example from the text","Second most damaging weakness with specific example"],'
-    +'"topStrengths":["What is genuinely working well with a specific example"],'
-    +'"nextRevisionSpec":"A numbered list of exactly what to change. Each item must be specific enough that a writer knows exactly what to do. Format: 1. [what] [where] [why it will raise a specific rubric score]"}';
+
+  // Rating call 1: rubric-based (objective criteria)
+  var RUSR='Rate this '+S.genre+' chapter excerpt. Score each criterion 0.0-1.0 (be strict).\n'
+    +'Chapter: "'+ch.title+'" | Synopsis: '+ch.synopsis+'\n'
+    +'Excerpt:\n'+excerpt+'\n\n'
+    +'Score these 10 criteria (0.0=fails completely, 0.5=mediocre, 0.8=good, 1.0=publishable bestseller level):\n'
+    +'{"R1":score,"R2":score,"R3":score,"R4":score,"R5":score,'
+    +'"R6":score,"R7":score,"R8":score,"R9":score,"R10":score,\n'
+    +'"R1_note":"Opening hook quality","R2_note":"Sentence-level prose","R3_note":"Character voice",'
+    +'"R4_note":"Character depth","R5_note":"Scene tension/stakes","R6_note":"Pacing",'
+    +'"R7_note":"Show vs tell","R8_note":"Dialogue","R9_note":"Genre delivery","R10_note":"Chapter ending hook",\n'
+    +'"weakest_criterion":"Rn","weakest_note":"exactly what is wrong and where in the text",\n'
+    +'"second_weakest":"Rn","second_note":"exactly what is wrong",\n'
+    +'"strongest":"Rn","strongest_note":"what is genuinely working",\n'
+    +'"rewrite_instruction":"If you had to rewrite this chapter to score 9+, what is the single most important thing to change? Be specific about what sentence/scene/element and what to replace it with."}';
 
   try{
-    var d=await askJ(RSYS,RUSR,1000);
+    var d=await askJ(SYS1,RUSR,900);
 
-    // Calculate score from rubric if individual scores present
-    var rubricKeys=['R1_HOOK','R2_PROSE','R3_VOICE','R4_CHARACTER','R5_TENSION','R6_PACING','R7_SHOWING','R8_DIALOGUE','R9_GENRE','R10_ENDING'];
-    var rubricSum=0;var rubricCount=0;
-    rubricKeys.forEach(function(k){if(typeof d[k]==='number'){rubricSum+=d[k];rubricCount++;}});
-    var newScore=rubricCount===10
-      ?Math.round(rubricSum*10)/10  // use rubric sum directly
-      :parseFloat(d.score)||7;
+    // Calculate score from the 10 rubric values
+    var keys=['R1','R2','R3','R4','R5','R6','R7','R8','R9','R10'];
+    var sum=0;var cnt=0;
+    keys.forEach(function(k){if(typeof d[k]==='number'){sum+=d[k];cnt++;}});
+    var newScore=cnt>=8?Math.round(sum*10)/10:parseFloat(d.score||sum)||6.5;
 
-    // Store rubric detail for display
-    var rubricDetail=rubricKeys.map(function(k){
-      return k.replace('_',' ')+': '+(d[k]||'?');
-    }).join(' | ');
+    // Build rubric detail string for display
+    var rubricNames={R1:'Hook',R2:'Prose',R3:'Voice',R4:'Character',R5:'Tension',R6:'Pacing',R7:'Show/Tell',R8:'Dialogue',R9:'Genre',R10:'Ending'};
+    var rubricDetail=keys.map(function(k){return rubricNames[k]+': '+(d[k]||'?');}).join(' | ');
 
-    var allIssues=[].concat(d.topWeaknesses||[]).filter(Boolean);
-    var allStrengths=[].concat(d.topStrengths||[]).filter(Boolean);
+    // Build the improvement priority from the weakest criteria
+    var weakPriority='';
+    if(d.weakest_criterion&&d.weakest_note)weakPriority+='WEAKEST ('+d.weakest_criterion+'): '+d.weakest_note+'. ';
+    if(d.second_weakest&&d.second_note)weakPriority+='SECOND WEAKEST ('+d.second_weakest+'): '+d.second_note+'. ';
+    if(d.rewrite_instruction)weakPriority+='KEY REWRITE: '+d.rewrite_instruction;
+
+    var allStrengths=d.strongest_note?[d.strongest+': '+d.strongest_note]:[];
 
     // Auto-rollback: if revised version scored lower, restore previous best
-    if(ch._prevContent && ch._prevScore && newScore < ch._prevScore){
-      toast('Rev scored '+newScore+'/10 — below best '+ch._prevScore+'/10. Restoring best version.');
+    if(ch._prevContent&&ch._prevScore&&newScore<ch._prevScore){
       ch.content=ch._prevContent;
       ch.score=ch._prevScore;
-      ch.issues=allIssues;
+      ch.issues=[weakPriority];
       ch.strengths=allStrengths;
-      ch.improvePriority=d.nextRevisionSpec||'';
+      ch.improvePriority=weakPriority;
       ch.rubricDetail=rubricDetail;
       if(!ch.revisionHistory)ch.revisionHistory=[];
-      ch.revisionHistory.push('Rev '+ch.revisions+' scored '+newScore+' ROLLED BACK. Spec saved for next attempt.');
+      ch.revisionHistory.push('Rev '+ch.revisions+' scored '+newScore+' ROLLED BACK (was '+ch._prevScore+')');
       ch._prevContent=null;ch._prevScore=null;ch._prevCritique=null;
-      ch.critique='BEST VERSION RESTORED ('+ch._prevScore+'/10). '
-        +'New rubric analysis saved for next revision. '+(d.rubricSummary||'');
+      ch.critique='RESTORED best version ('+ch._prevScore+'/10). Revision scored '+newScore+'. '
+        +'New diagnostic: '+(d.weakest_note||'');
+      toast('Revision scored '+newScore+'/10 — below best '+ch._prevScore+'/10. Best version restored.');
     }else{
-      var prev=ch._prevScore;
+      var prev=ch._prevScore||0;
       ch.score=newScore;
-      ch.critique=(d.rubricSummary||'')+' '+( d.topWeaknesses&&d.topWeaknesses[0]?'Main issue: '+d.topWeaknesses[0]:'');
-      ch.issues=allIssues;
+      ch.critique=(d.weakest_note?'Main weakness: '+d.weakest_note:'')+(d.strongest_note?' Strength: '+d.strongest_note:'');
+      ch.issues=[weakPriority].filter(Boolean);
       ch.strengths=allStrengths;
-      ch.improvePriority=d.nextRevisionSpec||'';
+      ch.improvePriority=weakPriority;
       ch.rubricDetail=rubricDetail;
       ch._prevContent=null;ch._prevScore=null;ch._prevCritique=null;
-      if(prev&&newScore>prev)toast('Chapter '+ch.number+' improved: '+newScore+'/10 (was '+prev+') ↑');
+      if(prev&&newScore>prev)toast('Chapter '+ch.number+' improved to '+newScore+'/10 (was '+prev+') ↑');
       else toast('Chapter '+ch.number+' scored: '+newScore+'/10');
     }
 
@@ -874,101 +864,117 @@ async function revCh(i){
   var prevContent=ch.content;
   var prevScore=ch.score||0;
   var prevCritique=ch.critique||'';
-
   ch.status='writing';
   renderChEditor(i);
   var ws=document.getElementById('wstat');
 
+  // THE KEY INSIGHT: do NOT feed the original prose to the rewriter.
+  // The model anchors to whatever text it sees and produces similar-quality output.
+  // Instead: get a precise rewrite brief, then write fresh from the synopsis.
+
   try{
-    // ── PHASE 1: Build a concrete revision spec from the rubric ───────────────
-    // We get specific, measurable improvements for each weak rubric criterion
-    // BEFORE touching the prose. This is the blueprint for the rewrite.
-    if(ws)ws.textContent='Phase 1 of 3: Building revision spec from rubric analysis…';
+    // ── PHASE 1: Generate a precise rewrite brief ─────────────────────────────
+    if(ws)ws.textContent='Phase 1 of 3: Generating rewrite brief…';
 
-    var SSYS='You are a developmental editor and writing coach specializing in '+S.genre+'. '
-      +'You write precise, actionable improvement specs. No vague advice. No praise. '
-      +'Every instruction must be specific enough that a writer knows exactly what sentence or scene to change and how.';
+    var BSYS='You are a brutally honest developmental editor specializing in '+S.genre+'. '
+      +'Your job: produce a rewrite brief so specific and actionable that any competent author '
+      +'who follows it will produce a chapter that scores significantly higher than '+prevScore+'/10. '
+      +'No vague advice. Every instruction names a specific technique with a specific example.';
 
-    var excerpt=ch.content.substring(0,1300);
-    var prevIssues=(ch.issues||[]).join('\n- ')||'not yet assessed';
-    var prevStrengths=(ch.strengths||[]).join(', ')||'not yet assessed';
-    var prevSpec=ch.improvePriority||'not yet assessed';
-    var failedAttempts=(ch.revisionHistory||[]).filter(function(x){return x.includes('ROLLED BACK');}).length;
+    var prevIssues=ch.improvePriority||((ch.issues||[]).join(' ')||'general quality issues');
+    var failHistory=(ch.revisionHistory||[]).filter(function(x){return x.includes('ROLLED BACK');});
 
-    var SUSR='The chapter below scored '+prevScore+'/10. '
-      +'Your job: write a REVISION SPEC that tells a writer exactly what to change to score higher on each of these rubric criteria. '
-      +'Focus on the lowest-scoring criteria. Be surgical and specific.\n\n'
-      +'KNOWN WEAK AREAS FROM RUBRIC:\n- '+prevIssues+'\n'
-      +'STRENGTHS TO PROTECT:\n'+prevStrengths+'\n'
-      +(failedAttempts>0?'NOTE: '+failedAttempts+' previous revision(s) failed to raise the score. Try a fundamentally different approach.\n':'')
-      +'CHAPTER EXCERPT:\n'+excerpt+'\n\n'
-      +'Write the REVISION SPEC as a numbered list. Each item:\n'
-      +'[Rubric criterion it fixes] | [Exact location in chapter] | [What to change] | [What to change it TO]\n'
-      +'Example: R2_PROSE | Opening paragraph | Generic weather description | Replace with Akhenaten noticing something that reveals his internal state\n'
-      +'Write 6-10 specific items. These items collectively must raise the score by at least 1 full point.';
+    var BUSR='Chapter "'+ch.title+'" scored '+prevScore+'/10. '
+      +'Rubric breakdown: '+(ch.rubricDetail||'not yet assessed')+'\n'
+      +'Known weaknesses: '+prevIssues+'\n'
+      +(failHistory.length?'IMPORTANT: Previous rewrites did NOT improve the score. '
+        +'The rewrites were too similar to the original. '
+        +'This brief must force a fundamentally different approach.\n':'')
+      +'Synopsis: '+ch.synopsis+'\n\n'
+      +'Write a REWRITE BRIEF with these exact sections:\n\n'
+      +'OPENING (first 150 words):\n'
+      +'- What specific scene/moment/image to open on (not a description, a specific vivid moment)\n'
+      +'- What the reader should feel in the first sentence\n'
+      +'- What question the opening should plant in the reader mind\n\n'
+      +'CORE SCENE BEATS:\n'
+      +'- List 4-5 specific beats that must happen (action + emotional shift)\n'
+      +'- For each beat: what sensory detail anchors it\n'
+      +'- For each beat: what the POV character wants and what blocks them\n\n'
+      +'PROSE TECHNIQUE:\n'
+      +'- Specific sentence variety instruction (e.g. short declaratives for tension, longer flowing for reflection)\n'
+      +'- Two specific images or metaphors to use (not generic, tied to this character and world)\n'
+      +'- One moment to show entirely through action/sensory detail with zero exposition\n\n'
+      +'DIALOGUE:\n'
+      +'- What subtext should run beneath any dialogue (what characters really mean vs what they say)\n'
+      +'- One specific exchange and its emotional purpose\n\n'
+      +'CHAPTER ENDING:\n'
+      +'- Exact type of hook to end on (action cliffhanger / unanswered question / emotional gut-punch)\n'
+      +'- The specific last image or line to aim for\n\n'
+      +'WHAT TO AVOID:\n'
+      +'- List 3 specific things the previous version did wrong that must NOT appear in the rewrite';
 
-    var revisionSpec=await ask(SSYS,SUSR,1200);
-    if(ws)ws.textContent='Phase 2 of 3: Rewriting first half to spec…';
+    var rewriteBrief=await ask(BSYS,BUSR,1300);
 
-    // ── PHASE 2: Rewrite first half using the spec as blueprint ──────────────
-    // Key insight: we give the model the SPEC and the ORIGINAL and say
-    // "write a new version that implements every item in the spec"
-    // This forces it to make concrete changes rather than paraphrasing.
-    var WSYS='You are a professional '+S.genre+' author. '
-      +'You have been given a revision spec written by an editor. '
-      +'Your job is to implement EVERY item in the spec precisely. '
-      +'The result must be clearly better than the original on the specified criteria. '
-      +'Write prose only — no headings, no labels, no meta-commentary. Same plot events, same characters.';
+    // ── PHASE 2: Write the first half fresh from the brief ────────────────────
+    if(ws)ws.textContent='Phase 2 of 3: Writing fresh first half from brief…';
 
-    var orig1=ch.content.substring(0,1100);
-    var R1='REVISION SPEC (implement every item):\n'
-      +revisionSpec+'\n\n'
-      +'ORIGINAL FIRST HALF (rewrite this implementing the spec):\n'
-      +orig1+'\n\n'
-      +'Write the improved first half. Implement every applicable spec item. '
-      +'Pay special attention to: the opening hook (R1), prose quality (R2), and showing vs telling (R7). '
-      +'Same length as original. Prose only.';
-    var imp1=await ask(WSYS,R1,1300);
+    var WSYS='You are a professional '+S.genre+' author writing a chapter from a detailed editorial brief. '
+      +'Follow the brief precisely. Do NOT refer to or imitate any previous version. '
+      +'Write as if starting completely fresh. '
+      +'Aim for the prose quality of a published '+S.genre+' bestseller. '
+      +'PROSE ONLY — no headings, no labels.';
 
-    if(ws)ws.textContent='Phase 3 of 3: Rewriting second half to spec…';
+    var W1='REWRITE BRIEF (follow this precisely):\n'
+      +rewriteBrief+'\n\n'
+      +'CHAPTER DETAILS:\n'
+      +'Novel: "'+S.novelTitle+'" | Genre: '+S.genre+' | POV: '+S.pov+'\n'
+      +'Chapter '+ch.number+': "'+ch.title+'"\n'
+      +'Synopsis: '+ch.synopsis+'\n\n'
+      +'Write the FIRST HALF of this chapter (~600-700 words). '
+      +'Follow the brief for the opening, first 2-3 scene beats, and prose technique. '
+      +'End at a natural mid-chapter pause point. '
+      +'Do NOT imitate any previous draft. Write fresh. Prose only.';
+    var half1=await ask(WSYS,W1,1300);
 
-    // ── PHASE 3: Rewrite second half using same spec ──────────────────────────
-    var midStart=Math.floor(ch.content.length*0.45);
-    var orig2=ch.content.substring(midStart,midStart+1100);
-    var R2='REVISION SPEC (implement every item):\n'
-      +revisionSpec+'\n\n'
-      +'The first half has been revised and now ends with:\n---\n'
-      +imp1.slice(-400)+'\n---\n\n'
-      +'ORIGINAL SECOND HALF (rewrite this implementing the spec):\n'
-      +orig2+'\n\n'
-      +'Write the improved second half. Continue naturally. '
-      +'Pay special attention to: tension (R5), dialogue (R8), and the chapter ending hook (R10). '
-      +'Same length as original. Prose only.';
-    var imp2=await ask(WSYS,R2,1300);
+    // ── PHASE 3: Write the second half continuing from half1 ──────────────────
+    if(ws)ws.textContent='Phase 3 of 3: Writing fresh second half…';
 
-    // Assemble
-    var bridge=ch.content.substring(1100,midStart);
-    ch.content=imp1+(bridge?'\n\n'+bridge:'')+'\n\n'+imp2;
+    var W2='REWRITE BRIEF (follow this precisely):\n'
+      +rewriteBrief+'\n\n'
+      +'CHAPTER DETAILS:\n'
+      +'Novel: "'+S.novelTitle+'" | Genre: '+S.genre+' | POV: '+S.pov+'\n'
+      +'Chapter '+ch.number+': "'+ch.title+'"\n'
+      +'Synopsis: '+ch.synopsis+'\n\n'
+      +'The first half has been written and ends with:\n---\n'
+      +half1.slice(-500)+'\n---\n\n'
+      +'Write the SECOND HALF of this chapter (~600-700 words). '
+      +'Follow the brief for the remaining scene beats, dialogue, and chapter ending. '
+      +'End with the specific hook type described in the brief. '
+      +'Prose only.';
+    var half2=await ask(WSYS,W2,1300);
+
+    // Store as the new version
+    ch.content=half1+'\n\n'+half2;
     ch.revisions=(ch.revisions||0)+1;
     ch.status='done';
     ch._prevContent=prevContent;
     ch._prevScore=prevScore;
     ch._prevCritique=prevCritique;
-    ch._critiqueDoc=revisionSpec;
+    ch._critiqueDoc=rewriteBrief;
     ch.score=0;
-    ch.critique='Revision '+ch.revisions+' complete (rubric-spec rewrite). '
-      +'Rate to compare vs previous '+prevScore+'/10.';
+    ch.critique='Revision '+ch.revisions+' written fresh from editorial brief. '
+      +'Rate now to compare vs previous '+prevScore+'/10.';
 
     if(!ch.revisionHistory)ch.revisionHistory=[];
-    ch.revisionHistory.push('Rev '+ch.revisions+': spec-driven rewrite targeting rubric weaknesses (prev '+prevScore+'/10)');
+    ch.revisionHistory.push('Rev '+ch.revisions+': fresh rewrite from editorial brief (prev score: '+prevScore+'/10)');
 
     renderChList();renderChEditor(i);
-    toast('Revision '+ch.revisions+' done. Rate to see rubric improvement vs '+prevScore+'/10.');
+    toast('Fresh rewrite complete. Rate to compare vs '+prevScore+'/10.');
 
   }catch(e){
     ch.content=prevContent;ch.score=prevScore;ch.critique=prevCritique;ch.status='done';
     renderChEditor(i);
-    toast('Revision error — previous version restored. '+e.message);
+    toast('Error — previous version restored. '+e.message);
   }
 }
 function approveCh(i){
